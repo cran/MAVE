@@ -1,37 +1,46 @@
 ### R code from vignette source 'Short_introduction_to_package_MAVE.Rnw'
 
 ###################################################
-### code chunk number 1: Short_introduction_to_package_MAVE.Rnw:37-42
+### code chunk number 1: Short_introduction_to_package_MAVE.Rnw:39-47
 ###################################################
-X <- matrix(rnorm(400),100,4)
-eps <- matrix(rnorm(100),100,1)
-Y <- as.matrix(X[,1]+X[,2]+(X[,3]+X[,4])*eps)
+set.seed(12345)
 library(MAVE)
-rd <- MAVE(X,Y)
+X <- matrix(rnorm(200*5),200,5)
+b1 <- matrix(c(1,1,0,0,0),5,1)
+b2 <- matrix(c(0,0,1,1,0),5,1)
+eps <- matrix(rnorm(200),200,1)
+y <- X%*%b1 + (X%*%b2)*eps
+rd <- MAVE(X,y)
 
 
 ###################################################
-### code chunk number 2: Short_introduction_to_package_MAVE.Rnw:47-48
+### code chunk number 2: Short_introduction_to_package_MAVE.Rnw:52-53
 ###################################################
 rd
 
 
 ###################################################
-### code chunk number 3: Short_introduction_to_package_MAVE.Rnw:52-54
+### code chunk number 3: Short_introduction_to_package_MAVE.Rnw:56-58
 ###################################################
-rd <- DIM(rd)
-rd
+dim <- DIM(rd)
+dim
 
 
 ###################################################
-### code chunk number 4: Short_introduction_to_package_MAVE.Rnw:57-58
+### code chunk number 4: Short_introduction_to_package_MAVE.Rnw:61-62
 ###################################################
-names(rd)
+names(dim)
 
 
 ###################################################
-### code chunk number 5: Short_introduction_to_package_MAVE.Rnw:61-62
+### code chunk number 5: Short_introduction_to_package_MAVE.Rnw:65-66
 ###################################################
-rd$dir
+dim$dir
+
+
+###################################################
+### code chunk number 6: Short_introduction_to_package_MAVE.Rnw:69-70
+###################################################
+dim$best_dir
 
 

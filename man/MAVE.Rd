@@ -19,12 +19,12 @@ by default, method = 'csOPG'
            for conditional mean
 \item 'csMAVE' and 'csOPG' estimate the central dimension reduction
            space
-\item 'kSIR' is a kernel version of sliced inverse regression (Li, 1991). It is fast, but
-           with poor efficiency
+\item 'KSIR' is a kernel version of sliced inverse regression (Li, 1991). It is fast, but
+           with poor accuracy.
 }}
 }
 \value{
-rd rd is a list which contains:
+rd is a list which contains:
 \itemize{
 \item dir: dir[[d]] is the central space with d-dimension
         d = 1, 2, ..., p reduced direction of different dimensions
@@ -44,9 +44,14 @@ This function provides several methods to estimate the central space or central 
  eps <- matrix(rnorm(200),200,1)
  y <- x\%*\%b1 + (x\%*\%b2)*eps
 
- rd1 <- MAVE(x,y,'csopg')
- rd2 <- MAVE(x,y,'meanopg')
- rd3 <- MAVE(x,y,'ksir')
+ #finding central space based on OPG method
+ rd.csopg <- MAVE(x,y,'csopg')
+ 
+ #find central mean space based on MAVE method
+ rd.meanopg <- MAVE(x,y,'meanopg')
+ 
+ #find central mean space based on ksir method
+ rd.ksir <- MAVE(x,y,'ksir')
 
 }
 \references{

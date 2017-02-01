@@ -39,7 +39,7 @@ void b_power(const emxArray_real_T *a, emxArray_real_T *y)
   emxEnsureCapacity((emxArray__common *)y, ub_loop, (int)sizeof(double));
   ub_loop = a->size[0];
 
-#pragma omp parallel for \
+//#pragma omp parallel for \
  num_threads(omp_get_max_threads())
 
   for (k = 1; k <= ub_loop; k++) {
@@ -76,7 +76,7 @@ void power(const emxArray_real_T *a, emxArray_real_T *y)
   emxEnsureCapacity((emxArray__common *)y, ub_loop, (int)sizeof(double));
   ub_loop = a->size[0] * a->size[1];
 
-#pragma omp parallel for \
+//#pragma omp parallel for \
  num_threads(omp_get_max_threads())
 
   for (k = 1; k <= ub_loop; k++) {

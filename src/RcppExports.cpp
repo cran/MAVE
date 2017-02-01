@@ -6,29 +6,29 @@
 
 using namespace Rcpp;
 
-// CVfast
-arma::rowvec CVfast(arma::mat x, arma::mat ky, arma::colvec BB1D);
-RcppExport SEXP MAVE_CVfast(SEXP xSEXP, SEXP kySEXP, SEXP BB1DSEXP) {
+// CVfastCpp
+arma::rowvec CVfastCpp(const arma::mat& x, const arma::mat& ky, const arma::colvec& BB1D);
+RcppExport SEXP MAVE_CVfastCpp(SEXP xSEXP, SEXP kySEXP, SEXP BB1DSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type ky(kySEXP);
-    Rcpp::traits::input_parameter< arma::colvec >::type BB1D(BB1DSEXP);
-    rcpp_result_gen = Rcpp::wrap(CVfast(x, ky, BB1D));
+    Rcpp::traits::input_parameter< const arma::mat& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type ky(kySEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type BB1D(BB1DSEXP);
+    rcpp_result_gen = Rcpp::wrap(CVfastCpp(x, ky, BB1D));
     return rcpp_result_gen;
 END_RCPP
 }
-// MAVEfast
-List MAVEfast(NumericVector x, NumericVector y, CharacterVector method);
-RcppExport SEXP MAVE_MAVEfast(SEXP xSEXP, SEXP ySEXP, SEXP methodSEXP) {
+// MAVEfastCpp
+List MAVEfastCpp(NumericVector x, NumericVector y, CharacterVector method);
+RcppExport SEXP MAVE_MAVEfastCpp(SEXP xSEXP, SEXP ySEXP, SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
     Rcpp::traits::input_parameter< CharacterVector >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(MAVEfast(x, y, method));
+    rcpp_result_gen = Rcpp::wrap(MAVEfastCpp(x, y, method));
     return rcpp_result_gen;
 END_RCPP
 }

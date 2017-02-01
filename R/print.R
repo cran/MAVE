@@ -14,7 +14,7 @@ print.mave<-function(x,...){
       print(x$dir[[3]])
     }
     cat('(only the first 3 ',arg,' are displayed,
-        to display the space of dimension k, call object$dir[[k]])')
+        to display the space of dimension k, call object$dir[[k]])\n')
   }
   else{
     pp=1
@@ -30,7 +30,8 @@ print.mave<-function(x,...){
     }
     cat('\n')
     d=which(x$cv==min(x$cv))
-    cat('The selected dimension is ',d,'\n')
+    cat('The selected dimension is ',d)
+    cat('\n\n')
     #cat(paste('The matrix of the best',arg,'selected by cross-validation is of',d,'dimensions,','\nwhich is given below\n',sep=' '))
     #print(x$dir[[d]])
   }

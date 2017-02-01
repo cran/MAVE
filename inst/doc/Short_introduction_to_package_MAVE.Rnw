@@ -14,6 +14,7 @@
 \usepackage{makeidx}
 \usepackage{fancyhdr}
 \usepackage{ulem}
+\usepackage{url}
 
 \newcommand{\indep}{\rotatebox[origin=c]{90}{$\models$}}
 
@@ -27,57 +28,66 @@
 \maketitle
 
 \section{Introduction}
-Package {\sffamily MAVE} provides several methods to find central space and central mean space using MAVE and OPG method which are proposed by \cite{Xia2002,Xia2008}. It also implements sliced inverse regression of kernel version. Formal definition of central space and central mean space can be found in \cite{Cook1998,Cook2002}. Sliced inverse regression was proposed by \cite{Li1991}, and more discussion can be found in \cite{SAVE}.
+Package {\sffamily MAVE} provides several methods, including MAVE and OPG methods proposed by \cite{Xia2002,Xia2007,Xia2008},  to find the central space (CS) and the central mean space (CMS). It also implements sliced inverse regression of a kernel version; see \cite{Li1991,Xia2002}. Formal definition of the central space and the central mean space can be found in \cite{Cook1998,Cook2002}. For comparison, a package {\sffamily dr} in CRAN also contains other sufficient dimension reduction methods\cite{dr}.
+%Sliced inverse regression was proposed by \cite{Li1991}, and more discussion can be found in \cite{SAVE}.
 
-The main part of package {\sffamily MAVE} is written in C++ based on {\sffamily RcppArmadillo} package. If there is any problem during installation, please update your Rcpp package and install RcppArmadillo package. It may cause problems.
+The main part of package {\sffamily MAVE} is written in C++ based on {\sffamily RcppArmadillo} package. If there is any problem during installation, please update your Rcpp package and install RcppArmadillo package and try again.
 
 \section{Usage}
-The primary function in this package is {\sffamily MAVE} function. The input arguments are a $n \times p$ covariate matrix $X$, $n\times 1$ respond matrix $Y$ and the method argument for dimension reduction. The options for the method argument are {\sffamily 'csopg', 'csmave','meanopg','meanmave'} and {\sffamily 'ksir'}, and the default is {\sffamily 'csopg'}. {\sffamily 'csopg'} and {\sffamily 'csmave'} are methods of finding CS by OPG and MAVE, {\sffamily 'meanopg'} and {\sffamily 'meanmave'} are methods of finding CMS by OPG and MAVE, {\sffamily 'ksir'} is the sliced inverse regression of kernel version. Its usage is very simple. The following is a simple example to show how to use it:
+The primary function in this package is {\sffamily MAVE()}. The input arguments include an $n \times p$ covariate matrix $X$, an $n\times 1$ respond matrix $Y$, and the method argument for dimension reduction. The options for the method argument are {\sffamily 'csopg', 'csmave','meanopg','meanmave'} and {\sffamily 'ksir'}, and the default is {\sffamily 'csopg'}. {\sffamily 'csopg'} and {\sffamily 'csmave'} are methods of finding CS by OPG and MAVE respectively, {\sffamily 'meanopg'} and {\sffamily 'meanmave'} are methods of finding CMS by OPG and MAVE, {\sffamily 'ksir'} is the sliced inverse regression of kernel version. {\sffamily MAVE()} is very easy to use. The following is a simple example.
 
 <<>>=
-X <- matrix(rnorm(400),100,4)
-eps <- matrix(rnorm(100),100,1)
-Y <- as.matrix(X[,1]+X[,2]+(X[,3]+X[,4])*eps)
+set.seed(12345)
 library(MAVE)
-rd <- MAVE(X,Y)
+X <- matrix(rnorm(200*5),200,5)
+b1 <- matrix(c(1,1,0,0,0),5,1)
+b2 <- matrix(c(0,0,1,1,0),5,1)
+eps <- matrix(rnorm(200),200,1)
+y <- X%*%b1 + (X%*%b2)*eps
+rd <- MAVE(X,y)
 @
-In the example above, {\sffamily 'csopg'} is actually used. In many cases, the result of OPG is as good as MAVE but it is much more time-efficient, hence OPG method is recommended.
+In the example above, {\sffamily 'csopg'} is actually used. In many cases, the result of OPG is as good as MAVE but its computation is much more time-efficient, hence OPG method is recommended.
 
-The class of object created by {\sffamily MAVE} function is {\sffamily mave}, which is a S3 class. It contains the basis matrix of central (mean) space of different dimension. The print method is implemented for {\sffamily mave} . By typing the name of the returned object, the output can be viewed.
+The class of object created by {\sffamily MAVE} function is a S3 class variable containing the matrix of CS or CMS  of different dimensions. By typing the name of the returned object, the output can be viewed.
 <<>>=
 rd
 @
+The output will display the first three matrices of CSs or CMSs estimated  by {\sffamily MAVE} function. To select dimension of the space by cross-validation method, {\sffamily DIM} method can be used.
+<<>>=
+dim <- DIM(rd)
+dim
+@
+The output shows the corresponding cv-value for different dimensions. More information is stored in the object. These includes:
+<<>>=
+names(dim)
+@
+In order to access other information such as CS or CMS all dimensions, just type
+<<>>=
+dim$dir
+@
+In order to access the best CS or CMS selected by {\sffamily DIM} method, just type
+<<>>=
+dim$best_dir
+@
 
-The output will display first three matrix of central (mean) space selected by {\sffamily MAVE} function. To select best direction by cross-validation method, {\sffamily DIM} method can be used.
-<<>>=
-rd <- DIM(rd)
-rd
-@
-The output show the corresponding cv-value for different dimensions. More additional information is stored in the object. These includes:
-<<>>=
-names(rd)
-@
-In order to access other information such as central (mean) space of all dimension, just type
-<<>>=
-rd$dir
-@
 
 \begin{thebibliography}{9}
 \bibitem{Li1991}
-Li, K. C. (1991). Sliced inverse regression for dimension reduction. Journal of the American Statistical Association, 86(414), 316-327.
-\bibitem{SAVE}
-Cook, R.D. and Weisberg, S.(1991). Discussion of Li(1991). Journal of the American Statistical Association, 86, 328-332.
+Li, K. C. (1991). Sliced inverse regression for dimension reduction. \textit{Journal of the American Statistical Association}, 86(414), 316-327.
 \bibitem{Cook1998}
-Cook, R.D.(1998), Regression Graphics. New York: Wiley
+Cook, R.D.(1998),\textit{Regression Graphics}. New York: Wiley
 \bibitem{Cook2002}
-Cook, R. D., and Li, B. (2002). Dimension reduction for conditional mean in regression. Annals of Statistics, 455-474.
-\bibitem{Fan1996}
-Fan, J., and Gijbels, I. (1996). Local Polynomial Modelling and Its Applications, New York: Chapman and Hall.
+Cook, R. D., and Li, B. (2002). Dimension reduction for conditional mean in regression. \textit{Annals of Statistics}, 455-474.
 \bibitem{Xia2002}
-  Xia, Y., Tong, H., Li, W. K., and Zhu, L. X. (2002). An adaptive estimation of dimension reduction space. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 64(3), 363-410.
+  Xia, Y., Tong, H., Li, W. K., and Zhu, L. X. (2002). An adaptive estimation of dimension reduction space. \textit{Journal of the Royal Statistical Society: Series B (Statistical Methodology)}, 64(3), 363-410.
+\bibitem{Xia2007}
+Xia, Y. (2007) A constructive approach to the estimation of dimension reduction directions.  \textit{Annals of Statistics}, 35(3), 2654-2690
 \bibitem{Xia2008}
- Wang, H., and Xia, Y. (2008). Sliced regression for dimension reduction. Journal of the American Statistical Association, 103(482), 811-821.
-
+ Wang, H., and Xia, Y. (2008). Sliced regression for dimension reduction. \textit{Journal of the American Statistical Association}, 103(482), 811-821.
+%\bibitem{dr}
+%\href{https://CRAN.R-project.org/package=dr}
+\bibitem{dr}
+Weisberg, S. (2002). Dimension reduction regression in R. Journal of Statistical Software, 7(1), 1-22.
 \end{thebibliography}
 
 %\section{Function document}

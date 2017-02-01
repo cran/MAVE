@@ -1,9 +1,9 @@
 Package: MAVE
 Type: Package
 Title: Methods for Dimension Reduction
-Version: 0.1.6
+Version: 0.1.7
 Date: 2017-01-16
-Author: Hang Weiqiang<E0010758@u.nus.edu>,Xia Yingcun<staxyc@nus.edu.sg>
+Author: Hang Weiqiang<E0010758@u.nus.edu>, Xia Yingcun<staxyc@nus.edu.sg>
 Maintainer: Hang Weiqiang<E0010758@u.nus.edu>
 Description: Functions for dimension reduction, using MAVE (Minimum Average Variance Estimation), OPG (Outer Product of Gradient) and KSIR (sliced inverse regression of kernel version). Methods for selecting the best dimension are also included.
 License: GPL (>= 2)
@@ -14,6 +14,6 @@ RoxygenNote: 5.0.1
 Suggests: knitr
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2017-01-29 03:18:25 UTC; hang
+Packaged: 2017-02-01 04:18:37 UTC; e0010758
 Repository: CRAN
-Date/Publication: 2017-01-29 10:16:10
+Date/Publication: 2017-02-01 08:34:35

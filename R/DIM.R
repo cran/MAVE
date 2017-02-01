@@ -5,7 +5,7 @@
 #'
 #' @param rd the result of MAVE function
 #'
-#' @return rd contains cross-validation values of corresponding
+#' @return dim contains cross-validation values of corresponding
 #' direction
 
 #' @export
@@ -17,15 +17,18 @@
 #'  eps <- matrix(rnorm(200),200,1)
 #'  y <- x%*%b1 + (x%*%b2)*eps
 #'
-#'  rd1 <- MAVE(x,y,'csmave')
-#'  rd2 <- MAVE(x,y,'meanmave')
-#'
-#'  rd1 <- DIM(rd1)
-#'  rd2 <- DIM(rd2)
+#'  #seleted dimension of central space
+#'  rd.cs <- MAVE(x,y,'csmave')
+#'  dim.cs <- DIM(rd.cs)
+#'  
+#'  #seleted dimension of central mean space
+#'  rd.mean <- MAVE(x,y,'meanmave')
+#'  dim.mean <- DIM(rd.mean)
 
 DIM<-function(rd){
   dir1D=list2M1d(rd$dir);
-  rd$cv<-CVfast(rd$x,rd$ky,dir1D)
+  rd$cv<-CVfastCpp(rd$x,rd$ky,dir1D)
   rd$call<-match.call()
+  rd$best_dir=rd$dir[[which.min(rd$cv)]]
   return(rd)
 }

@@ -78,29 +78,26 @@ arma::uvec max_num(arma::colvec x,int num) {
 
 
 //[[Rcpp::export]]
-arma::rowvec CVfast(arma::mat x,arma::mat ky,arma::colvec BB1D){
+arma::rowvec CVfastCpp(const arma::mat& x,const arma::mat& ky,const arma::colvec& BB1D){
   int n = x.n_rows;
-  int ny=ky.n_cols;
+  //int ny=ky.n_cols;
   int nD=x.n_cols;
   arma::rowvec cv;cv.zeros(nD);
-
+  
   for(int p=0;p<nD;++p){
-
+    
     arma::mat nBB;nBB.zeros(nD,p+1);
-    for(int i=0;i<nBB.size();++i){
+    for(unsigned int i=0;i<nBB.size();++i){
       nBB[i]=BB1D[pow(nD,2)*p+i];
     }
     arma::mat nx=x*nBB;
     nx=tiedrank(nx)/(n+1);
-    double h=mean(mean(stddev(nx,0,0)))/(pow(n,1/(p+5.0)));
-    double h2 = 2*h*h;
-
+    double h=mean(mean(stddev(nx,0,0)))/(pow(n,1/(p+3.0)));
+    
     for(int i=0;i<n;++i){
-      arma::colvec dxi=sum(pow(nx-repmat(nx.row(i),n,1),2),1)/h2;
-      arma::colvec k=(1-dxi)%(1>dxi);
-      arma::uvec idx=max_num(k,2);
-      arma::rowvec val;val.zeros(2);
-      k.elem(idx)=val;
+      arma::colvec dxi = sum(abs(nx-repmat(nx.row(i),n,1)),1)/h;
+      arma::colvec k=1/pow(1+dxi,4);
+      k[i]=0;
       k=k/(sum(k)+1e-6);
       arma::rowvec ye=k.t()*ky;
       cv[p]+=mean(abs(ye-ky.row(i)))/n;

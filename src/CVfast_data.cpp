@@ -17,6 +17,6 @@
 
 /* Variable Definitions */
 unsigned int state[625];
-omp_nest_lock_t emlrtNestLockGlobal;
+//omp_nest_lock_t emlrtNestLockGlobal;
 
 /* End of code generation (CVfast_data.cpp) */

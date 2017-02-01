@@ -12,7 +12,7 @@ using namespace std;
 
 
 // [[Rcpp::export]]
-List MAVEfast(NumericVector x,NumericVector y,CharacterVector method) {
+List MAVEfastCpp(NumericVector x,NumericVector y,CharacterVector method) {
 
   int lenx=x.size(),leny=y.size();
   int nrow = leny, ncol = lenx/leny;

@@ -64,7 +64,7 @@ void b_std(const emxArray_real_T *varargin_1, emxArray_real_T *y)
   } else {
     loop_ub = varargin_1->size[1];
 
-#pragma omp parallel for \
+//#pragma omp parallel for \
  num_threads(omp_get_max_threads()) \
  private(ix,c_y,xbar,k,r)
 

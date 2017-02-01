@@ -21,12 +21,12 @@
 #include "rt_defines.h"
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-#include "omp.h"
+//#include "omp.h"
 #include "CVfast_types.h"
 
 /* Variable Declarations */
 extern unsigned int state[625];
-extern omp_nest_lock_t emlrtNestLockGlobal;
+//extern omp_nest_lock_t emlrtNestLockGlobal;
 
 #endif
 
