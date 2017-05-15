@@ -11,10 +11,9 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "kron.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 
 /* Function Definitions */
 void kron(const emxArray_real_T *A, const emxArray_real_T *B, emxArray_real_T *K)

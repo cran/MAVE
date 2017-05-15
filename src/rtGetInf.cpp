@@ -5,7 +5,7 @@
  *
  * rtGetInf.cpp
  *
- * Code generation for function 'CVfast'
+ * Code generation for function 'MAVEfast'
  *
  */
 

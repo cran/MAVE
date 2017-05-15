@@ -11,10 +11,9 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "quantile.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 #include "prctile.h"
 #include "linspace.h"
 
@@ -23,7 +22,7 @@ void quantile(const emxArray_real_T *x, const emxArray_real_T *p,
               emxArray_real_T *y)
 {
   emxArray_real_T *p100;
-  int i9;
+  int i2;
   double delta;
   int loop_ub;
   emxInit_real_T(&p100, 2);
@@ -32,13 +31,13 @@ void quantile(const emxArray_real_T *x, const emxArray_real_T *p,
     delta = 100.0 / (p->data[0] + 1.0);
     linspace(delta, 100.0 - delta, p->data[0], p100);
   } else {
-    i9 = p100->size[0] * p100->size[1];
+    i2 = p100->size[0] * p100->size[1];
     p100->size[0] = 1;
     p100->size[1] = p->size[1];
-    emxEnsureCapacity((emxArray__common *)p100, i9, (int)sizeof(double));
+    emxEnsureCapacity((emxArray__common *)p100, i2, (int)sizeof(double));
     loop_ub = p->size[0] * p->size[1];
-    for (i9 = 0; i9 < loop_ub; i9++) {
-      p100->data[i9] = 100.0 * p->data[i9];
+    for (i2 = 0; i2 < loop_ub; i2++) {
+      p100->data[i2] = 100.0 * p->data[i2];
     }
   }
 

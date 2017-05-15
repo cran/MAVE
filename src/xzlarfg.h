@@ -18,14 +18,14 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rt_defines.h"
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
 //#include "omp.h"
-#include "CVfast_types.h"
+#include "MAVEfast_types.h"
 
 /* Function Declarations */
-extern double xzlarfg(int n, double *alpha1, double x[3]);
+extern double b_xzlarfg(int n, double *alpha1, double x[3]);
+extern double xzlarfg(int n, double *alpha1, emxArray_real_T *x, int ix0);
 
 #endif
 

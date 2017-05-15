@@ -18,11 +18,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rt_defines.h"
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
 //#include "omp.h"
-#include "CVfast_types.h"
+#include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern void xzhgeqz(emxArray_creal_T *A, int ilo, int ihi, emxArray_creal_T *Z,

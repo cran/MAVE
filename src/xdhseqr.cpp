@@ -11,7 +11,6 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xdhseqr.h"
 #include "xrot.h"
@@ -246,7 +245,7 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
             }
 
             tst = v[0];
-            rt2r = xzlarfg(nr, &tst, v);
+            rt2r = b_xzlarfg(nr, &tst, v);
             v[0] = tst;
             if (b_k > m) {
               h->data[(b_k + h->size[0] * (b_k - 2)) - 1] = tst;

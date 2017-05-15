@@ -1,9 +1,10 @@
-M3d2list<-function(BB){
+M3d2list<-function(BB,xnames){
 	p=dim(BB)[1]
 	B=list()
-	B[[1]]=matrix(BB[,1,1])
-	for(i in 2:p){
-		B[[i]] = BB[,1:i,i]
+	for(i in 1:p){
+		B[[i]] = as.matrix(BB[,1:i,i])
+		colnames(B[[i]])<-paste('dir',1:i,sep='')
+    rownames(B[[i]])<-xnames
 	}
 	return(B)
 }

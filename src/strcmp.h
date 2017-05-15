@@ -18,11 +18,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rt_defines.h"
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
 //#include "omp.h"
-#include "CVfast_types.h"
+#include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern boolean_T b_strcmp(const emxArray_char_T *a);

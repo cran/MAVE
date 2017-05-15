@@ -11,16 +11,15 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xzggev.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 #include "xzlartg.h"
 #include "xztgevc.h"
 #include "xzhgeqz.h"
 #include "xzggbal.h"
-#include "relop.h"
-#include "CVfast_rtwutil.h"
+#include "xzlarfg.h"
+#include "MAVEfast_rtwutil.h"
 
 /* Function Definitions */
 void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
@@ -177,7 +176,7 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
         }
       }
 
-      emxInit_int32_T(&rscale, 1);
+      emxInit_int32_T1(&rscale, 1);
       emxInit_int8_T(&I, 2);
       xzggbal(A, &ilo, &ihi, rscale);
       b_n = A->size[0];

@@ -11,13 +11,17 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "sum.h"
 #include "combine_vector_elements.h"
 
 /* Function Definitions */
-double b_sum(const emxArray_real_T *x)
+void b_sum(const emxArray_real_T *x, emxArray_real_T *y)
+{
+  combine_vector_elements(x, y);
+}
+
+double sum(const emxArray_real_T *x)
 {
   double y;
   int k;
@@ -31,11 +35,6 @@ double b_sum(const emxArray_real_T *x)
   }
 
   return y;
-}
-
-void sum(const emxArray_real_T *x, emxArray_real_T *y)
-{
-  combine_vector_elements(x, y);
 }
 
 /* End of code generation (sum.cpp) */

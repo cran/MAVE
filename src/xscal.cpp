@@ -11,17 +11,16 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xscal.h"
 
 /* Function Definitions */
 void xscal(int n, double a, emxArray_real_T *x, int ix0)
 {
-  int i19;
+  int i13;
   int k;
-  i19 = (ix0 + n) - 1;
-  for (k = ix0; k <= i19; k++) {
+  i13 = (ix0 + n) - 1;
+  for (k = ix0; k <= i13; k++) {
     x->data[k - 1] *= a;
   }
 }

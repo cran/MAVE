@@ -11,10 +11,9 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xzhgeqz.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 #include "xzlartg.h"
 #include "sqrt.h"
 

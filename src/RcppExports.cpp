@@ -7,28 +7,41 @@
 using namespace Rcpp;
 
 // CVfastCpp
-arma::rowvec CVfastCpp(const arma::mat& x, const arma::mat& ky, const arma::colvec& BB1D);
-RcppExport SEXP MAVE_CVfastCpp(SEXP xSEXP, SEXP kySEXP, SEXP BB1DSEXP) {
+double CVfastCpp(const arma::mat& x, const arma::mat& ky);
+RcppExport SEXP MAVE_CVfastCpp(SEXP xSEXP, SEXP kySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type x(xSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type ky(kySEXP);
-    Rcpp::traits::input_parameter< const arma::colvec& >::type BB1D(BB1DSEXP);
-    rcpp_result_gen = Rcpp::wrap(CVfastCpp(x, ky, BB1D));
+    rcpp_result_gen = Rcpp::wrap(CVfastCpp(x, ky));
     return rcpp_result_gen;
 END_RCPP
 }
 // MAVEfastCpp
-List MAVEfastCpp(NumericVector x, NumericVector y, CharacterVector method);
-RcppExport SEXP MAVE_MAVEfastCpp(SEXP xSEXP, SEXP ySEXP, SEXP methodSEXP) {
+List MAVEfastCpp(NumericVector x, NumericVector y, CharacterVector method, NumericVector which_dim);
+RcppExport SEXP MAVE_MAVEfastCpp(SEXP xSEXP, SEXP ySEXP, SEXP methodSEXP, SEXP which_dimSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
     Rcpp::traits::input_parameter< CharacterVector >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(MAVEfastCpp(x, y, method));
+    Rcpp::traits::input_parameter< NumericVector >::type which_dim(which_dimSEXP);
+    rcpp_result_gen = Rcpp::wrap(MAVEfastCpp(x, y, method, which_dim));
+    return rcpp_result_gen;
+END_RCPP
+}
+// PredictCpp
+arma::colvec PredictCpp(const arma::mat& x, const arma::mat& newx, const arma::colvec& y);
+RcppExport SEXP MAVE_PredictCpp(SEXP xSEXP, SEXP newxSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type newx(newxSEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(PredictCpp(x, newx, y));
     return rcpp_result_gen;
 END_RCPP
 }

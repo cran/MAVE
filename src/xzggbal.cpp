@@ -11,10 +11,9 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xzggbal.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 
 /* Function Definitions */
 void xzggbal(emxArray_creal_T *A, int *ilo, int *ihi, emxArray_int32_T *rscale)

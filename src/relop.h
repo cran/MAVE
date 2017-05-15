@@ -22,7 +22,7 @@
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
 //#include "omp.h"
-#include "CVfast_types.h"
+#include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern boolean_T relop(const creal_T a, const creal_T b);

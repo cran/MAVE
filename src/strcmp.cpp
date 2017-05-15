@@ -11,7 +11,6 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "strcmp.h"
 
@@ -21,15 +20,16 @@ boolean_T b_strcmp(const emxArray_char_T *a)
   boolean_T b_bool;
   int kstr;
   int exitg1;
-  static const char cv0[8] = { 'M', 'E', 'A', 'N', 'M', 'A', 'V', 'E' };
+  static const char cv1[8] = { 'M', 'E', 'A', 'N', 'M', 'A', 'V', 'E' };
 
   b_bool = false;
-  if (a->size[1] == 8) {
+  if ((a->size[0] != 1) || (a->size[1] != 8)) {
+  } else {
     kstr = 0;
     do {
       exitg1 = 0;
       if (kstr + 1 < 9) {
-        if (a->data[kstr] != cv0[kstr]) {
+        if (a->data[kstr] != cv1[kstr]) {
           exitg1 = 1;
         } else {
           kstr++;
@@ -49,15 +49,16 @@ boolean_T c_strcmp(const emxArray_char_T *a)
   boolean_T b_bool;
   int kstr;
   int exitg1;
-  static const char cv1[7] = { 'M', 'E', 'A', 'N', 'O', 'P', 'G' };
+  static const char cv2[7] = { 'M', 'E', 'A', 'N', 'O', 'P', 'G' };
 
   b_bool = false;
-  if (a->size[1] == 7) {
+  if ((a->size[0] != 1) || (a->size[1] != 7)) {
+  } else {
     kstr = 0;
     do {
       exitg1 = 0;
       if (kstr + 1 < 8) {
-        if (a->data[kstr] != cv1[kstr]) {
+        if (a->data[kstr] != cv2[kstr]) {
           exitg1 = 1;
         } else {
           kstr++;
@@ -77,15 +78,16 @@ boolean_T d_strcmp(const emxArray_char_T *a)
   boolean_T b_bool;
   int kstr;
   int exitg1;
-  static const char cv2[4] = { 'K', 'S', 'I', 'R' };
+  static const char cv3[4] = { 'K', 'S', 'I', 'R' };
 
   b_bool = false;
-  if (a->size[1] == 4) {
+  if ((a->size[0] != 1) || (a->size[1] != 4)) {
+  } else {
     kstr = 0;
     do {
       exitg1 = 0;
       if (kstr + 1 < 5) {
-        if (a->data[kstr] != cv2[kstr]) {
+        if (a->data[kstr] != cv3[kstr]) {
           exitg1 = 1;
         } else {
           kstr++;
@@ -105,15 +107,16 @@ boolean_T e_strcmp(const emxArray_char_T *a)
   boolean_T b_bool;
   int kstr;
   int exitg1;
-  static const char cv3[5] = { 'C', 'S', 'O', 'P', 'G' };
+  static const char cv4[5] = { 'C', 'S', 'O', 'P', 'G' };
 
   b_bool = false;
-  if (a->size[1] == 5) {
+  if ((a->size[0] != 1) || (a->size[1] != 5)) {
+  } else {
     kstr = 0;
     do {
       exitg1 = 0;
       if (kstr + 1 < 6) {
-        if (a->data[kstr] != cv3[kstr]) {
+        if (a->data[kstr] != cv4[kstr]) {
           exitg1 = 1;
         } else {
           kstr++;

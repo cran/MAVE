@@ -11,10 +11,9 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "eye.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 
 /* Function Definitions */
 void eye(double varargin_1, emxArray_real_T *I)

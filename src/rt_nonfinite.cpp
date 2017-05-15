@@ -5,7 +5,7 @@
  *
  * rt_nonfinite.cpp
  *
- * Code generation for function 'CVfast'
+ * Code generation for function 'MAVEfast'
  *
  */
 

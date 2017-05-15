@@ -11,16 +11,15 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "std.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 
 /* Function Definitions */
 void b_std(const emxArray_real_T *varargin_1, emxArray_real_T *y)
 {
   emxArray_real_T *x;
-  int i2;
+  int i7;
   int loop_ub;
   int n;
   double d;
@@ -32,13 +31,13 @@ void b_std(const emxArray_real_T *varargin_1, emxArray_real_T *y)
   int k;
   double r;
   emxInit_real_T(&x, 2);
-  i2 = x->size[0] * x->size[1];
+  i7 = x->size[0] * x->size[1];
   x->size[0] = varargin_1->size[0];
   x->size[1] = varargin_1->size[1];
-  emxEnsureCapacity((emxArray__common *)x, i2, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)x, i7, (int)sizeof(double));
   loop_ub = varargin_1->size[0] * varargin_1->size[1];
-  for (i2 = 0; i2 < loop_ub; i2++) {
-    x->data[i2] = varargin_1->data[i2];
+  for (i7 = 0; i7 < loop_ub; i7++) {
+    x->data[i7] = varargin_1->data[i7];
   }
 
   n = varargin_1->size[0];
@@ -49,17 +48,17 @@ void b_std(const emxArray_real_T *varargin_1, emxArray_real_T *y)
   }
 
   emxInit_real_T(&b_y, 2);
-  i2 = b_y->size[0] * b_y->size[1];
+  i7 = b_y->size[0] * b_y->size[1];
   b_y->size[0] = 1;
   b_y->size[1] = varargin_1->size[1];
-  emxEnsureCapacity((emxArray__common *)b_y, i2, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)b_y, i7, (int)sizeof(double));
   if ((varargin_1->size[0] == 0) || (varargin_1->size[1] == 0)) {
-    i2 = b_y->size[0] * b_y->size[1];
+    i7 = b_y->size[0] * b_y->size[1];
     b_y->size[0] = 1;
-    emxEnsureCapacity((emxArray__common *)b_y, i2, (int)sizeof(double));
+    emxEnsureCapacity((emxArray__common *)b_y, i7, (int)sizeof(double));
     loop_ub = b_y->size[1];
-    for (i2 = 0; i2 < loop_ub; i2++) {
-      b_y->data[b_y->size[0] * i2] = 0.0;
+    for (i7 = 0; i7 < loop_ub; i7++) {
+      b_y->data[b_y->size[0] * i7] = 0.0;
     }
   } else {
     loop_ub = varargin_1->size[1];
@@ -98,13 +97,13 @@ void b_std(const emxArray_real_T *varargin_1, emxArray_real_T *y)
   }
 
   emxFree_real_T(&x);
-  i2 = y->size[0] * y->size[1];
+  i7 = y->size[0] * y->size[1];
   y->size[0] = 1;
   y->size[1] = b_y->size[1];
-  emxEnsureCapacity((emxArray__common *)y, i2, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)y, i7, (int)sizeof(double));
   loop_ub = b_y->size[0] * b_y->size[1];
-  for (i2 = 0; i2 < loop_ub; i2++) {
-    y->data[i2] = b_y->data[i2];
+  for (i7 = 0; i7 < loop_ub; i7++) {
+    y->data[i7] = b_y->data[i7];
   }
 
   for (loop_ub = 0; loop_ub + 1 <= b_y->size[1]; loop_ub++) {

@@ -18,18 +18,16 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rt_defines.h"
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
 //#include "omp.h"
-#include "CVfast_types.h"
+#include "MAVEfast_types.h"
 
 /* Function Declarations */
-extern void b_sort(emxArray_real_T *x);
-extern void d_sort(emxArray_real_T *x, emxArray_int32_T *idx);
+extern void c_sort(emxArray_real_T *x, emxArray_int32_T *idx);
+extern void e_sort(emxArray_real_T *x, emxArray_int32_T *idx);
 extern void f_sort(emxArray_real_T *x);
-extern void g_sort(emxArray_creal_T *x, emxArray_int32_T *idx);
-extern void sort(emxArray_real_T *x, emxArray_int32_T *idx);
+extern void sort(emxArray_real_T *x);
 
 #endif
 

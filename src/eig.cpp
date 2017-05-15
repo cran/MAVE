@@ -11,19 +11,18 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "eig.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 #include "schur.h"
-#include "relop.h"
+#include "xzlarfg.h"
 #include "xzggev.h"
-#include "CVfast_rtwutil.h"
+#include "MAVEfast_rtwutil.h"
 
 /* Function Definitions */
 void eig(const emxArray_real_T *A, emxArray_creal_T *V, emxArray_creal_T *D)
 {
-  int i8;
+  int i0;
   boolean_T p;
   int kend;
   emxArray_creal_T *At;
@@ -42,43 +41,43 @@ void eig(const emxArray_real_T *A, emxArray_creal_T *V, emxArray_creal_T *D)
   double alpha1_re;
   double alpha1_im;
   if ((A->size[0] == 0) || (A->size[1] == 0)) {
-    i8 = V->size[0] * V->size[1];
+    i0 = V->size[0] * V->size[1];
     V->size[0] = A->size[0];
     V->size[1] = A->size[1];
-    emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(creal_T));
+    emxEnsureCapacity((emxArray__common *)V, i0, (int)sizeof(creal_T));
     i = A->size[0] * A->size[1];
-    for (i8 = 0; i8 < i; i8++) {
-      V->data[i8].re = A->data[i8];
-      V->data[i8].im = 0.0;
+    for (i0 = 0; i0 < i; i0++) {
+      V->data[i0].re = A->data[i0];
+      V->data[i0].im = 0.0;
     }
 
-    i8 = D->size[0] * D->size[1];
+    i0 = D->size[0] * D->size[1];
     D->size[0] = A->size[0];
     D->size[1] = A->size[1];
-    emxEnsureCapacity((emxArray__common *)D, i8, (int)sizeof(creal_T));
+    emxEnsureCapacity((emxArray__common *)D, i0, (int)sizeof(creal_T));
     i = A->size[0] * A->size[1];
-    for (i8 = 0; i8 < i; i8++) {
-      D->data[i8].re = A->data[i8];
-      D->data[i8].im = 0.0;
+    for (i0 = 0; i0 < i; i0++) {
+      D->data[i0].re = A->data[i0];
+      D->data[i0].im = 0.0;
     }
   } else if ((A->size[0] == 1) && (A->size[1] == 1)) {
-    i8 = V->size[0] * V->size[1];
+    i0 = V->size[0] * V->size[1];
     V->size[0] = 1;
     V->size[1] = 1;
-    emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(creal_T));
-    for (i8 = 0; i8 < 1; i8++) {
+    emxEnsureCapacity((emxArray__common *)V, i0, (int)sizeof(creal_T));
+    for (i0 = 0; i0 < 1; i0++) {
       V->data[0].re = 1.0;
       V->data[0].im = 0.0;
     }
 
-    i8 = D->size[0] * D->size[1];
+    i0 = D->size[0] * D->size[1];
     D->size[0] = A->size[0];
     D->size[1] = A->size[1];
-    emxEnsureCapacity((emxArray__common *)D, i8, (int)sizeof(creal_T));
+    emxEnsureCapacity((emxArray__common *)D, i0, (int)sizeof(creal_T));
     i = A->size[0] * A->size[1];
-    for (i8 = 0; i8 < i; i8++) {
-      D->data[i8].re = A->data[i8];
-      D->data[i8].im = 0.0;
+    for (i0 = 0; i0 < i; i0++) {
+      D->data[i0].re = A->data[i0];
+      D->data[i0].im = 0.0;
     }
   } else {
     p = (A->size[0] == A->size[1]);
@@ -112,13 +111,13 @@ void eig(const emxArray_real_T *A, emxArray_creal_T *V, emxArray_creal_T *D)
     emxInit_creal_T1(&At, 2);
     if (p) {
       schur(A, V, At);
-      i8 = D->size[0] * D->size[1];
+      i0 = D->size[0] * D->size[1];
       D->size[0] = At->size[0];
       D->size[1] = At->size[1];
-      emxEnsureCapacity((emxArray__common *)D, i8, (int)sizeof(creal_T));
+      emxEnsureCapacity((emxArray__common *)D, i0, (int)sizeof(creal_T));
       i = At->size[0] * At->size[1];
-      for (i8 = 0; i8 < i; i8++) {
-        D->data[i8] = At->data[i8];
+      for (i0 = 0; i0 < i; i0++) {
+        D->data[i0] = At->data[i0];
       }
 
       absxk = At->data[0].re;
@@ -136,14 +135,14 @@ void eig(const emxArray_real_T *A, emxArray_creal_T *V, emxArray_creal_T *D)
         }
       }
     } else {
-      i8 = At->size[0] * At->size[1];
+      i0 = At->size[0] * At->size[1];
       At->size[0] = A->size[0];
       At->size[1] = A->size[1];
-      emxEnsureCapacity((emxArray__common *)At, i8, (int)sizeof(creal_T));
+      emxEnsureCapacity((emxArray__common *)At, i0, (int)sizeof(creal_T));
       i = A->size[0] * A->size[1];
-      for (i8 = 0; i8 < i; i8++) {
-        At->data[i8].re = A->data[i8];
-        At->data[i8].im = 0.0;
+      for (i0 = 0; i0 < i; i0++) {
+        At->data[i0].re = A->data[i0];
+        At->data[i0].im = 0.0;
       }
 
       emxInit_creal_T(&alpha1, 1);
@@ -183,8 +182,8 @@ void eig(const emxArray_real_T *A, emxArray_creal_T *V, emxArray_creal_T *D)
           colnorm = scale * std::sqrt(colnorm);
         }
 
-        i8 = coltop + n;
-        for (kend = coltop; kend + 1 <= i8; kend++) {
+        i0 = coltop + n;
+        for (kend = coltop; kend + 1 <= i0; kend++) {
           absxk = V->data[kend].re;
           scale = V->data[kend].im;
           if (scale == 0.0) {
@@ -200,14 +199,14 @@ void eig(const emxArray_real_T *A, emxArray_creal_T *V, emxArray_creal_T *D)
         }
       }
 
-      i8 = D->size[0] * D->size[1];
+      i0 = D->size[0] * D->size[1];
       D->size[0] = alpha1->size[0];
       D->size[1] = alpha1->size[0];
-      emxEnsureCapacity((emxArray__common *)D, i8, (int)sizeof(creal_T));
+      emxEnsureCapacity((emxArray__common *)D, i0, (int)sizeof(creal_T));
       i = alpha1->size[0] * alpha1->size[0];
-      for (i8 = 0; i8 < i; i8++) {
-        D->data[i8].re = 0.0;
-        D->data[i8].im = 0.0;
+      for (i0 = 0; i0 < i; i0++) {
+        D->data[i0].re = 0.0;
+        D->data[i0].im = 0.0;
       }
 
       for (i = 0; i < alpha1->size[0]; i++) {

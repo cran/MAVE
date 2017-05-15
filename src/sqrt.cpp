@@ -11,11 +11,10 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "sqrt.h"
-#include "relop.h"
-#include "CVfast_rtwutil.h"
+#include "xzlarfg.h"
+#include "MAVEfast_rtwutil.h"
 
 /* Function Definitions */
 void b_sqrt(creal_T *x)

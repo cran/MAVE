@@ -11,17 +11,16 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "schur.h"
 #include "xscal.h"
 #include "xzlarf.h"
-#include "relop.h"
+#include "xzlarfg.h"
 #include "xdlanv2.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 #include "xdhseqr.h"
 #include "xgehrd.h"
-#include "CVfast_rtwutil.h"
+#include "MAVEfast_rtwutil.h"
 
 /* Function Definitions */
 void schur(const emxArray_real_T *A, emxArray_creal_T *V, emxArray_creal_T *T)

@@ -11,24 +11,23 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "abs.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 
 /* Function Definitions */
 void b_abs(const emxArray_boolean_T *x, emxArray_real_T *y)
 {
-  unsigned int uv2[2];
+  unsigned int uv0[2];
   int n;
   int k;
   for (n = 0; n < 2; n++) {
-    uv2[n] = (unsigned int)x->size[n];
+    uv0[n] = (unsigned int)x->size[n];
   }
 
   n = y->size[0] * y->size[1];
-  y->size[0] = (int)uv2[0];
-  y->size[1] = (int)uv2[1];
+  y->size[0] = (int)uv0[0];
+  y->size[1] = (int)uv0[1];
   emxEnsureCapacity((emxArray__common *)y, n, (int)sizeof(double));
   n = x->size[0] * x->size[1];
   for (k = 0; k + 1 <= n; k++) {

@@ -11,11 +11,10 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xzlartg.h"
-#include "relop.h"
-#include "CVfast_rtwutil.h"
+#include "xzlarfg.h"
+#include "MAVEfast_rtwutil.h"
 
 /* Function Definitions */
 void b_xzlartg(const creal_T f, const creal_T g, double *cs, creal_T *sn)

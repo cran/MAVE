@@ -11,7 +11,6 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xzlarf.h"
 
@@ -25,7 +24,7 @@ void xzlarf(int m, int n, int iv0, double tau, emxArray_real_T *C, int ic0, int
   boolean_T exitg2;
   int jy;
   int j;
-  int i20;
+  int i14;
   int ia;
   int exitg1;
   double c;
@@ -73,9 +72,9 @@ void xzlarf(int m, int n, int iv0, double tau, emxArray_real_T *C, int ic0, int
       }
 
       i = 0;
-      i20 = ic0 + ldc * (lastc - 1);
+      i14 = ic0 + ldc * (lastc - 1);
       jy = ic0;
-      while ((ldc > 0) && (jy <= i20)) {
+      while ((ldc > 0) && (jy <= i14)) {
         ix = iv0;
         c = 0.0;
         j = (jy + lastv) - 1;
@@ -97,8 +96,8 @@ void xzlarf(int m, int n, int iv0, double tau, emxArray_real_T *C, int ic0, int
         if (work->data[jy] != 0.0) {
           c = work->data[jy] * -tau;
           ix = iv0;
-          i20 = lastv + i;
-          for (ia = i; ia + 1 <= i20; ia++) {
+          i14 = lastv + i;
+          for (ia = i; ia + 1 <= i14; ia++) {
             C->data[ia] += C->data[ix - 1] * c;
             ix++;
           }

@@ -1,7 +1,7 @@
 
 #include "MAVEfast.h"
-#include "CVfast.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast.h"
+#include "MAVEfast_emxutil.h"
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -12,12 +12,12 @@ using namespace std;
 
 
 // [[Rcpp::export]]
-List MAVEfastCpp(NumericVector x,NumericVector y,CharacterVector method) {
+List MAVEfastCpp(NumericVector x,NumericVector y,CharacterVector method, NumericVector which_dim) {
 
-  int lenx=x.size(),leny=y.size();
+  int lenx=x.size(),leny=y.size(), ndim=which_dim.size();
   int nrow = leny, ncol = lenx/leny;
   //printf("%d %d\n",nrow,ncol);
-  emxArray_real_T *emxArray_x,*emxArray_y,*emxArray_BB,*emxArray_ky;
+  emxArray_real_T *emxArray_x,*emxArray_y,*emxArray_BB,*emxArray_ky,*emxArray_which_dim;
   emxArray_char_T *emxArray_method;
   std::string std_method = Rcpp::as<std::string>(method);
   emxInit_real_T(&emxArray_x,2);
@@ -25,6 +25,7 @@ List MAVEfastCpp(NumericVector x,NumericVector y,CharacterVector method) {
   emxInit_real_T(&emxArray_BB,2);
   emxInit_real_T(&emxArray_ky,2);
   emxInit_char_T(&emxArray_method,2);
+  emxInit_real_T(&emxArray_which_dim,2);
   emxArray_x->size[0]=nrow;
   emxArray_x->size[1]=ncol;
   emxArray_y->size[0]=nrow;
@@ -34,10 +35,13 @@ List MAVEfastCpp(NumericVector x,NumericVector y,CharacterVector method) {
   //emxArray_BB->size[2]=ncol;
   emxArray_method->size[0]=1;
   emxArray_method->size[1] = std_method.size();
+  emxArray_which_dim->size[0]=1;
+  emxArray_which_dim->size[1]=ndim;
   emxEnsureCapacity((emxArray__common *)emxArray_x, 0, (int)sizeof(double));
   emxEnsureCapacity((emxArray__common *)emxArray_y, 0, (int)sizeof(double));
   emxEnsureCapacity((emxArray__common *)emxArray_BB, 0, (int)sizeof(double));
   emxEnsureCapacity((emxArray__common *)emxArray_method, 0, (int)sizeof(char));
+  emxEnsureCapacity((emxArray__common *)emxArray_which_dim, 0, (int)sizeof(double));
 
   for(int i=0;i<nrow;++i){
     for(int j=0;j<ncol;++j){
@@ -51,7 +55,12 @@ List MAVEfastCpp(NumericVector x,NumericVector y,CharacterVector method) {
   for(int i=0;i<std_method.size();++i){
     emxArray_method->data[i] = std_method[i];
   }
-  MAVEfast(emxArray_x, emxArray_y, emxArray_method, emxArray_BB, emxArray_ky);
+  for(int i=0;i<ndim;++i){
+    emxArray_which_dim->data[i] = which_dim[i];
+  }
+
+  MAVEfast(emxArray_x, emxArray_y, emxArray_method, emxArray_which_dim, emxArray_BB, emxArray_ky);
+
   NumericVector BB(pow(ncol,3));
   NumericVector ky(emxArray_ky->size[0]*emxArray_ky->size[1]);
   NumericVector nx(lenx);
@@ -85,10 +94,8 @@ List MAVEfastCpp(NumericVector x,NumericVector y,CharacterVector method) {
   dimnx[0] = nrow;
   dimnx[1] = ncol;
   nx.attr("dim")=dimnx;
-  Rcpp::List result = Rcpp::List::create(Rcpp::Named("BB")=BB,
-                                         Rcpp::Named("ky")=ky,
-                                         Rcpp::Named("x")=nx);
-  result.attr("class")="mave";
+  Rcpp::List result = Rcpp::List::create(Rcpp::Named("dir")=BB,
+                                         Rcpp::Named("ky")=ky);
   return result;
 
 }

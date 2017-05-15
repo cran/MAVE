@@ -5,42 +5,42 @@
 ###################################################
 set.seed(12345)
 library(MAVE)
-X <- matrix(rnorm(200*5),200,5)
+x <- matrix(rnorm(400*5),400,5)
 b1 <- matrix(c(1,1,0,0,0),5,1)
 b2 <- matrix(c(0,0,1,1,0),5,1)
-eps <- matrix(rnorm(200),200,1)
-y <- X%*%b1 + (X%*%b2)*eps
-rd <- MAVE(X,y)
+eps <- matrix(rnorm(400),400,1)
+y <- x%*%b1 + (x%*%b2)*eps
+dr <- mave(y~x, method='csmave')
 
 
 ###################################################
 ### code chunk number 2: Short_introduction_to_package_MAVE.Rnw:52-53
 ###################################################
-rd
+dr
 
 
 ###################################################
 ### code chunk number 3: Short_introduction_to_package_MAVE.Rnw:56-58
 ###################################################
-dim <- DIM(rd)
-dim
+dr.dim <- mave.dim(dr)
+dr.dim
 
 
 ###################################################
 ### code chunk number 4: Short_introduction_to_package_MAVE.Rnw:61-62
 ###################################################
-names(dim)
+names(dr.dim)
 
 
 ###################################################
 ### code chunk number 5: Short_introduction_to_package_MAVE.Rnw:65-66
 ###################################################
-dim$dir
+dr.dim$dir
 
 
 ###################################################
 ### code chunk number 6: Short_introduction_to_package_MAVE.Rnw:69-70
 ###################################################
-dim$best_dir
+mave.dir(dr.dim)
 
 

@@ -11,10 +11,9 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "prctile.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 
 /* Function Declarations */
 static void percentile_array(const emxArray_real_T *x, const emxArray_real_T *p,
@@ -54,8 +53,8 @@ static void percentile_array(const emxArray_real_T *x, const emxArray_real_T *p,
   emxEnsureCapacity((emxArray__common *)pct, j, (int)sizeof(double));
   emxInit_real_T1(&wk, 1);
   emxInit_real_T(&pctv, 2);
-  emxInit_int32_T(&idx, 1);
-  emxInit_int32_T(&iwork, 1);
+  emxInit_int32_T1(&idx, 1);
+  emxInit_int32_T1(&iwork, 1);
   if ((x->size[0] == 0) || (x->size[1] == 0) || ((pct->size[0] == 0) ||
        (pct->size[1] == 0))) {
     j = pct->size[0] * pct->size[1];

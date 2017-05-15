@@ -1,6 +1,6 @@
-%\VignetteIndexEntry{Use Guide of Package} 
-%\VignetteDepends{} 
-%\VignetteKeywords{} 
+%\VignetteIndexEntry{Use Guide of Package}
+%\VignetteDepends{}
+%\VignetteKeywords{}
 
 
 \documentclass[a4paper,12pt]{article}
@@ -39,35 +39,35 @@ The primary function in this package is {\sffamily MAVE()}. The input arguments 
 <<>>=
 set.seed(12345)
 library(MAVE)
-X <- matrix(rnorm(200*5),200,5)
+x <- matrix(rnorm(400*5),400,5)
 b1 <- matrix(c(1,1,0,0,0),5,1)
 b2 <- matrix(c(0,0,1,1,0),5,1)
-eps <- matrix(rnorm(200),200,1)
-y <- X%*%b1 + (X%*%b2)*eps
-rd <- MAVE(X,y)
+eps <- matrix(rnorm(400),400,1)
+y <- x%*%b1 + (x%*%b2)*eps
+dr <- mave(y~x, method='csmave')
 @
 In the example above, {\sffamily 'csopg'} is actually used. In many cases, the result of OPG is as good as MAVE but its computation is much more time-efficient, hence OPG method is recommended.
 
 The class of object created by {\sffamily MAVE} function is a S3 class variable containing the matrix of CS or CMS  of different dimensions. By typing the name of the returned object, the output can be viewed.
 <<>>=
-rd
+dr
 @
 The output will display the first three matrices of CSs or CMSs estimated  by {\sffamily MAVE} function. To select dimension of the space by cross-validation method, {\sffamily DIM} method can be used.
 <<>>=
-dim <- DIM(rd)
-dim
+dr.dim <- mave.dim(dr)
+dr.dim
 @
 The output shows the corresponding cv-value for different dimensions. More information is stored in the object. These includes:
 <<>>=
-names(dim)
+names(dr.dim)
 @
 In order to access other information such as CS or CMS all dimensions, just type
 <<>>=
-dim$dir
+dr.dim$dir
 @
 In order to access the best CS or CMS selected by {\sffamily DIM} method, just type
 <<>>=
-dim$best_dir
+mave.dir(dr.dim)
 @
 
 

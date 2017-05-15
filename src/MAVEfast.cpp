@@ -11,11 +11,10 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
-#include "CVfast_emxutil.h"
+#include "MAVEfast_emxutil.h"
 #include "power.h"
-#include "inv.h"
+#include "mldivide.h"
 #include "eye.h"
 #include "repmat.h"
 #include "exp.h"
@@ -24,19 +23,68 @@
 #include "eig.h"
 #include "kron.h"
 #include "sum.h"
+#include "inv.h"
 #include "strcmp.h"
 #include "mean.h"
 #include "std.h"
+#include "norm.h"
 #include "rdivide.h"
 #include "sqrt.h"
 #include "abs.h"
 #include "quantile.h"
-#include "CVfast_rtwutil.h"
-#include <stdio.h>
+#include "upper.h"
+
 /* Function Declarations */
+static double rt_powd_snf(double u0, double u1);
 static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I);
 
 /* Function Definitions */
+static double rt_powd_snf(double u0, double u1)
+{
+  double y;
+  double d0;
+  double d1;
+  if (rtIsNaN(u0) || rtIsNaN(u1)) {
+    y = rtNaN;
+  } else {
+    d0 = std::abs(u0);
+    d1 = std::abs(u1);
+    if (rtIsInf(u1)) {
+      if (d0 == 1.0) {
+        y = rtNaN;
+      } else if (d0 > 1.0) {
+        if (u1 > 0.0) {
+          y = rtInf;
+        } else {
+          y = 0.0;
+        }
+      } else if (u1 > 0.0) {
+        y = 0.0;
+      } else {
+        y = rtInf;
+      }
+    } else if (d1 == 0.0) {
+      y = 1.0;
+    } else if (d1 == 1.0) {
+      if (u1 > 0.0) {
+        y = u0;
+      } else {
+        y = 1.0 / u0;
+      }
+    } else if (u1 == 2.0) {
+      y = u0 * u0;
+    } else if ((u1 == 0.5) && (u0 >= 0.0)) {
+      y = std::sqrt(u0);
+    } else if ((u0 < 0.0) && (u1 > std::floor(u1))) {
+      y = rtNaN;
+    } else {
+      y = pow(u0, u1);
+    }
+  }
+
+  return y;
+}
+
 static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
 {
   int p;
@@ -51,7 +99,6 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
   int nrows;
   int result;
   emxArray_real_T *Xremain;
-  int I_count;
   emxArray_int32_T *Ii;
   emxArray_int32_T *b_Ii;
   emxArray_int32_T *iidx;
@@ -62,6 +109,7 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
   emxArray_real_T *c_Xremain;
   emxArray_real_T *d_Xremain;
   emxArray_real_T *e_Xremain;
+  emxArray_real_T *b_I;
   emxArray_real_T *f_Xremain;
   double s;
   int nrowx;
@@ -168,21 +216,12 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
     }
 
     b_k = I->size[0] * I->size[1];
-    I->size[0] = (int)m;
-    I->size[1] = 1;
+    I->size[0] = 0;
+    I->size[1] = 0;
     emxEnsureCapacity((emxArray__common *)I, b_k, (int)sizeof(double));
-    loop_ub = (int)m;
-    for (b_k = 0; b_k < loop_ub; b_k++) {
-      I->data[b_k] = 0.0;
-    }
-
-    /* Jan 13 */
-    I_count = -1;
-
-    /* Jan 13 */
-    emxInit_int32_T(&Ii, 1);
-    emxInit_int32_T(&b_Ii, 1);
-    emxInit_int32_T(&iidx, 1);
+    emxInit_int32_T1(&Ii, 1);
+    emxInit_int32_T1(&b_Ii, 1);
+    emxInit_int32_T1(&iidx, 1);
     emxInit_real_T(&b_x, 2);
     emxInit_boolean_T(&b, 2);
     emxInit_real_T(&b_Xremain, 2);
@@ -190,6 +229,7 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
     emxInit_real_T(&c_Xremain, 2);
     emxInit_real_T(&d_Xremain, 2);
     emxInit_real_T(&e_Xremain, 2);
+    emxInit_real_T(&b_I, 2);
     emxInit_real_T(&f_Xremain, 2);
     while (Xremain->size[0] > 1) {
       if (1 > p) {
@@ -223,8 +263,8 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
       }
 
       power(c_Xremain, b_x);
-      sum(b_x, varargin_2);
-      sort(varargin_2, iidx);
+      b_sum(b_x, varargin_2);
+      e_sort(varargin_2, iidx);
       b_k = b_Ii->size[0];
       b_Ii->size[0] = iidx->size[0];
       emxEnsureCapacity((emxArray__common *)b_Ii, b_k, (int)sizeof(int));
@@ -335,8 +375,8 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
       }
 
       power(b_Xremain, b_x);
-      sum(b_x, varargin_2);
-      sort(varargin_2, iidx);
+      b_sum(b_x, varargin_2);
+      e_sort(varargin_2, iidx);
       b_k = varargin_2->size[0];
       varargin_2->size[0] = iidx->size[0];
       emxEnsureCapacity((emxArray__common *)varargin_2, b_k, (int)sizeof(double));
@@ -345,14 +385,35 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
         varargin_2->data[b_k] = iidx->data[b_k];
       }
 
-      /* I = [I, Xremain(Ii(J(1)),p+1)]; */
-      I_count++;
+      s = Xremain->data[(b_Ii->data[(int)varargin_2->data[0] - 1] +
+                         Xremain->size[0] * p) - 1];
+      if (!((I->size[0] == 0) || (I->size[1] == 0))) {
+        nrows = I->size[1];
+      } else {
+        nrows = 0;
+      }
 
-      /* Jan 13 */
-      I->data[I_count] = Xremain->data[(b_Ii->data[(int)varargin_2->data[0] - 1]
-        + Xremain->size[0] * p) - 1];
+      b_k = b_I->size[0] * b_I->size[1];
+      b_I->size[0] = 1;
+      b_I->size[1] = nrows + 1;
+      emxEnsureCapacity((emxArray__common *)b_I, b_k, (int)sizeof(double));
+      for (b_k = 0; b_k < nrows; b_k++) {
+        b_I->data[b_I->size[0] * b_k] = I->data[b_k];
+      }
 
-      /* Jan 13 */
+      b_I->data[b_I->size[0] * nrows] = s;
+      b_k = I->size[0] * I->size[1];
+      I->size[0] = b_I->size[0];
+      I->size[1] = b_I->size[1];
+      emxEnsureCapacity((emxArray__common *)I, b_k, (int)sizeof(double));
+      loop_ub = b_I->size[1];
+      for (b_k = 0; b_k < loop_ub; b_k++) {
+        result = b_I->size[0];
+        for (i = 0; i < result; i++) {
+          I->data[i + I->size[0] * b_k] = b_I->data[i + b_I->size[0] * b_k];
+        }
+      }
+
       b_k = iidx->size[0];
       iidx->size[0] = Ii->size[0];
       emxEnsureCapacity((emxArray__common *)iidx, b_k, (int)sizeof(int));
@@ -437,6 +498,7 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
     }
 
     emxFree_real_T(&f_Xremain);
+    emxFree_real_T(&b_I);
     emxFree_real_T(&e_Xremain);
     emxFree_real_T(&d_Xremain);
     emxFree_real_T(&c_Xremain);
@@ -454,28 +516,29 @@ static void unifD(const emxArray_real_T *x, double m, emxArray_real_T *I)
   emxFree_real_T(&y);
 }
 
-void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
-              emxArray_char_T *method, emxArray_real_T *BB1D, emxArray_real_T
-              *ky)
+void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, emxArray_char_T
+              *method, emxArray_real_T *which_dim, emxArray_real_T *BB1D,
+              emxArray_real_T *ky)
 {
   emxArray_real_T *qx;
   emxArray_real_T *a;
   int p;
   int n;
-  int i15;
+  int i8;
   int loop_ub;
   int br;
-  int i16;
-  emxArray_real_T *ss;
+  int i9;
+  emxArray_real_T *yi;
   int k;
-  int vstride;
   int nx;
+  int vstride;
   int m;
-  emxArray_real_T *b_ss;
+  emxArray_real_T *b_yi;
   double pp;
-  int i17;
-  emxArray_real_T *V;
+  int k1;
+  emxArray_real_T *ss;
   int ic;
+  emxArray_real_T *V;
   emxArray_creal_T *Vc;
   emxArray_creal_T *Dc;
   int ar;
@@ -484,7 +547,8 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
   emxArray_real_T *b;
   emxArray_real_T *yj;
   emxArray_real_T *b_x;
-  boolean_T empty_non_axis_sizes;
+  emxArray_char_T *b_method;
+  emxArray_real_T *b_p;
   emxArray_real_T *ky1;
   emxArray_real_T *ky2;
   emxArray_real_T *DD;
@@ -498,36 +562,40 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
   emxArray_int32_T *ii;
   emxArray_real_T *b_s;
   emxArray_real_T *b_Dc;
-  emxArray_boolean_T *c_ss;
+  emxArray_boolean_T *c_yi;
   emxArray_real_T *c_qx;
   emxArray_real_T *b_ky;
   emxArray_real_T *b_V;
   emxArray_real_T *c_V;
-  boolean_T guard2 = false;
-  int b_m;
+  int nm1d2;
   emxArray_real_T *BB;
-  emxArray_real_T *r1;
+  emxArray_real_T *r0;
   emxArray_real_T *onexi;
   emxArray_real_T *B;
-  int ip;
+  int iter;
   emxArray_real_T *D;
   emxArray_real_T *Ifast;
-  emxArray_real_T *Vfast;
+  emxArray_real_T *b_B;
   emxArray_real_T *xfast;
+  emxArray_real_T *c_B;
   emxArray_real_T *xij;
+  boolean_T empty_non_axis_sizes;
   emxArray_real_T *dxij;
   emxArray_real_T *abi;
   emxArray_real_T *dd;
   emxArray_real_T *kxijy;
   emxArray_real_T *ddx;
   emxArray_real_T *tmp;
-  emxArray_real_T *b_B;
+  emxArray_real_T *B0;
+  emxArray_real_T *d_B;
   emxArray_creal_T *R;
   emxArray_real_T *b_C;
+  boolean_T guard1 = false;
   emxArray_real_T *c_C;
   emxArray_real_T *d_C;
   emxArray_real_T *e_C;
-  emxArray_int32_T *r2;
+  emxArray_real_T *d_x;
+  emxArray_int32_T *r1;
   emxArray_real_T *b_y;
   emxArray_real_T *c_y;
   emxArray_real_T *d_y;
@@ -535,16 +603,15 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
   emxArray_real_T *e_y;
   emxArray_real_T *f_y;
   emxArray_real_T *g_y;
-  emxArray_real_T *h_y;
   emxArray_real_T *b_dd;
   emxArray_real_T *b_abi;
   emxArray_real_T *f_C;
   emxArray_real_T *d_V;
-  emxArray_real_T *b_Vfast;
+  emxArray_real_T *b_U;
   emxArray_real_T *b_xfast;
   emxArray_real_T *g_C;
   emxArray_real_T *e_V;
-  emxArray_real_T *c_B;
+  emxArray_real_T *e_B;
   emxArray_int32_T *b_Ifast;
   emxArray_int32_T *c_Ifast;
   emxArray_real_T *b_dc;
@@ -552,127 +619,87 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
   emxArray_int32_T *d_Ifast;
   emxArray_int32_T *e_Ifast;
   boolean_T exitg1;
-  int b_ip;
+  double ip;
+  double b_m;
   int K;
-  int iter;
-  double c_m;
-  int Ifast_idx_0;
+  int b_iter;
   int j;
-  double h2;
-  boolean_T guard1 = false;
-  boolean_T b0;
+  double b_nm1d2;
   boolean_T exitg2;
   boolean_T b_guard1 = false;
+  int Ifast_idx_0;
+  double h2;
   unsigned int a_idx_0;
-  int k1;
-  double b_a;
   double d;
   double ndbl;
   double apnd;
   double cdiff;
+  double absa;
+  double absb;
   emxInit_real_T(&qx, 2);
   emxInit_real_T(&a, 2);
 
   /*  */
-  /*  [estB,cv] = MAVE(x, y, method, CV); */
-  /*  INPUT */
-  /*  x: nxp matrix of predictors */
-  /*  y: nx1 of response; */
-  /*  method: 'meanOPG'; 'meanMAVE'; 'csMAVE'; 'csOPG'; 'kSIR' */
-  /*          by default, method = 'csOPG' */
-  /*          (1) 'meanOPG' and 'meanMAVE' estimate dimension reduction space */
-  /*              for conditional mean */
-  /*          (2) 'csMAVE' and 'csOPG' estimate the central dimension reduction */
-  /*              space */
-  /*          (3) 'kSIR' is a kernel version of SIR (Li, 1991). It is fast, but */
-  /*              with poor efficiency */
-  /*  CV:  'yes'--to calculate the CV values, by default */
-  /*       'no'--dont calculate CV values to make the calculation faster */
-  /*  OUTPUT */
-  /*  estB: pxpxp matrix */
-  /*      estB(:,1:d, d) is the central space with dimension=d */
-  /*          d = 1, 2, ..., p */
-  /*  cv: Cross-Validation (CV) values for d = 1, 2, ..., p. */
-  /*      the dimension with smallest CV is the estimated dimension. */
-  /*  */
-  /*  Reference,  Xia et al (2002, JRSSB); Xia (2007, AoS), Wang and Xia (2008, JASA) */
-  /*  */
-  /*  %Example */
-  /*   n = 200; p = 10; */
-  /*   B = zeros(p,2); */
-  /*   B(1,1)=1; */
-  /*   B(2,2)=1; */
-  /*   x = randn(n,p); */
-  /*   y = (x*B(:,1)) + (x*B(:,2)).*randn(n,1); */
-  /*   [estB, cv] = MAVE(x,y,'csMAVE'); */
-  /*   %Estimated directions */
-  /*     B1 = estB(:,1:1,1)  % when dimension is fixed as 1 */
-  /*     B2 = estB(:,1:2,2)  % when dimension is fixed as 2 */
-  /*     B3 = estB(:,1:3,3)  % when dimension is fixed as 3 */
-  /*     ... */
-  /*   % Estimated dimension */
-  /*      find(cv ==min(cv)) */
   p = x->size[1];
   n = x->size[0];
-  //printf("n=%d p=%d\n",n,p);printf("x=\n");for(int i=0;i<x->size[0];++i){for(int j=0;j<x->size[1];++j) printf("%.3lf ",x->data[j*x->size[0]+i]);printf("\n");}
-  b_mean(x, qx);
+  mean(x, qx);
   repmat(qx, (double)x->size[0], a);
-  i15 = x->size[0] * x->size[1];
-  emxEnsureCapacity((emxArray__common *)x, i15, (int)sizeof(double));
+  i8 = x->size[0] * x->size[1];
+  emxEnsureCapacity((emxArray__common *)x, i8, (int)sizeof(double));
   loop_ub = x->size[1];
-  for (i15 = 0; i15 < loop_ub; i15++) {
+  for (i8 = 0; i8 < loop_ub; i8++) {
     br = x->size[0];
-    for (i16 = 0; i16 < br; i16++) {
-      x->data[i16 + x->size[0] * i15] -= a->data[i16 + a->size[0] * i15];
-    }
-  }
-  //printf("x=\n");for(int i=0;i<x->size[0];++i){for(int j=0;j<x->size[1];++j) printf("%.3lf ",x->data[j*x->size[0]+i]);printf("\n");}
-  i15 = a->size[0] * a->size[1];
-  a->size[0] = x->size[1];//as
-  a->size[1] = x->size[0];
-  emxEnsureCapacity((emxArray__common *)a, i15, (int)sizeof(double));
-  loop_ub = x->size[0];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    br = x->size[1];
-    for (i16 = 0; i16 < br; i16++) {
-      a->data[i16 + a->size[0] * i15] = x->data[i15 + x->size[0] * i16];
+    for (i9 = 0; i9 < br; i9++) {
+      x->data[i9 + x->size[0] * i8] -= a->data[i9 + a->size[0] * i8];
     }
   }
 
-  emxInit_real_T(&ss, 2);
+  i8 = a->size[0] * a->size[1];
+  a->size[0] = x->size[1];
+  a->size[1] = x->size[0];
+  emxEnsureCapacity((emxArray__common *)a, i8, (int)sizeof(double));
+  loop_ub = x->size[0];
+  for (i8 = 0; i8 < loop_ub; i8++) {
+    br = x->size[1];
+    for (i9 = 0; i9 < br; i9++) {
+      a->data[i9 + a->size[0] * i8] = x->data[i8 + x->size[0] * i9];
+    }
+  }
+
+  emxInit_real_T(&yi, 2);
   if ((a->size[1] == 1) || (x->size[0] == 1)) {
-    i15 = ss->size[0] * ss->size[1];
-    ss->size[0] = a->size[0];
-    ss->size[1] = x->size[1];
-    emxEnsureCapacity((emxArray__common *)ss, i15, (int)sizeof(double));
+    i8 = yi->size[0] * yi->size[1];
+    yi->size[0] = a->size[0];
+    yi->size[1] = x->size[1];
+    emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
     loop_ub = a->size[0];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = x->size[1];
-      for (i16 = 0; i16 < br; i16++) {
-        ss->data[i15 + ss->size[0] * i16] = 0.0;
-        nx = a->size[1];
-        for (i17 = 0; i17 < nx; i17++) {
-          ss->data[i15 + ss->size[0] * i16] += a->data[i15 + a->size[0] * i17] *
-            x->data[i17 + x->size[0] * i16];
+      for (i9 = 0; i9 < br; i9++) {
+        yi->data[i8 + yi->size[0] * i9] = 0.0;
+        vstride = a->size[1];
+        for (k1 = 0; k1 < vstride; k1++) {
+          yi->data[i8 + yi->size[0] * i9] += a->data[i8 + a->size[0] * k1] *
+            x->data[k1 + x->size[0] * i9];
         }
       }
     }
   } else {
     k = a->size[1];
-    vstride = a->size[0];
-    nx = x->size[1];
-    i15 = ss->size[0] * ss->size[1];
-    ss->size[0] = vstride;
-    ss->size[1] = nx;
-    emxEnsureCapacity((emxArray__common *)ss, i15, (int)sizeof(double));
+    nx = a->size[0];
+    vstride = x->size[1];
+    i8 = yi->size[0] * yi->size[1];
+    yi->size[0] = nx;
+    yi->size[1] = vstride;
+    emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
     m = a->size[0];
-    i15 = ss->size[0] * ss->size[1];
-    emxEnsureCapacity((emxArray__common *)ss, i15, (int)sizeof(double));
-    loop_ub = ss->size[1];
-    for (i15 = 0; i15 < loop_ub; i15++) {
-      br = ss->size[0];
-      for (i16 = 0; i16 < br; i16++) {
-        ss->data[i16 + ss->size[0] * i15] = 0.0;
+    i8 = yi->size[0] * yi->size[1];
+    emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
+    loop_ub = yi->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      br = yi->size[0];
+      for (i9 = 0; i9 < br; i9++) {
+        yi->data[i9 + yi->size[0] * i8] = 0.0;
       }
     }
 
@@ -681,9 +708,9 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       vstride = a->size[0] * (x->size[1] - 1);
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
-        i15 = nx + m;
-        for (ic = nx; ic + 1 <= i15; ic++) {
-          ss->data[ic] = 0.0;
+        i8 = nx + m;
+        for (ic = nx; ic + 1 <= i8; ic++) {
+          yi->data[ic] = 0.0;
         }
 
         nx += m;
@@ -693,14 +720,14 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
         ar = 0;
-        i15 = br + k;
-        for (ib = br; ib + 1 <= i15; ib++) {
+        i8 = br + k;
+        for (ib = br; ib + 1 <= i8; ib++) {
           if (x->data[ib] != 0.0) {
             ia = ar;
-            i16 = nx + m;
-            for (ic = nx; ic + 1 <= i16; ic++) {
+            i9 = nx + m;
+            for (ic = nx; ic + 1 <= i9; ic++) {
               ia++;
-              ss->data[ic] += x->data[ib] * a->data[ia - 1];
+              yi->data[ic] += x->data[ib] * a->data[ia - 1];
             }
           }
 
@@ -713,78 +740,79 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
     }
   }
 
-  emxInit_real_T(&b_ss, 2);
+  emxInit_real_T(&b_yi, 2);
   pp = rt_powd_snf((double)n, 3.0);
   eye((double)p, a);
-  i15 = b_ss->size[0] * b_ss->size[1];
-  b_ss->size[0] = ss->size[0];
-  b_ss->size[1] = ss->size[1];
-  emxEnsureCapacity((emxArray__common *)b_ss, i15, (int)sizeof(double));
-  loop_ub = ss->size[0] * ss->size[1];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    b_ss->data[i15] = ss->data[i15] / (double)n + a->data[i15] / pp;
+  i8 = b_yi->size[0] * b_yi->size[1];
+  b_yi->size[0] = yi->size[0];
+  b_yi->size[1] = yi->size[1];
+  emxEnsureCapacity((emxArray__common *)b_yi, i8, (int)sizeof(double));
+  loop_ub = yi->size[0] * yi->size[1];
+  for (i8 = 0; i8 < loop_ub; i8++) {
+    b_yi->data[i8] = yi->data[i8] / (double)n + a->data[i8] / pp;
   }
 
+  emxInit_real_T(&ss, 2);
   emxInit_real_T(&V, 2);
   emxInit_creal_T1(&Vc, 2);
   emxInit_creal_T1(&Dc, 2);
-  inv(b_ss, ss);
+  inv(b_yi, ss);
   eig(ss, Vc, Dc);
-  i15 = V->size[0] * V->size[1];
+  i8 = V->size[0] * V->size[1];
   V->size[0] = Vc->size[0];
   V->size[1] = Vc->size[1];
-  emxEnsureCapacity((emxArray__common *)V, i15, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
   loop_ub = Vc->size[0] * Vc->size[1];
-  emxFree_real_T(&b_ss);
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    V->data[i15] = Vc->data[i15].re;
+  emxFree_real_T(&b_yi);
+  for (i8 = 0; i8 < loop_ub; i8++) {
+    V->data[i8] = Vc->data[i8].re;
   }
 
   emxInit_real_T(&b, 2);
-  i15 = b->size[0] * b->size[1];
+  i8 = b->size[0] * b->size[1];
   b->size[0] = Dc->size[0];
   b->size[1] = Dc->size[1];
-  emxEnsureCapacity((emxArray__common *)b, i15, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
   loop_ub = Dc->size[0] * Dc->size[1];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    b->data[i15] = Dc->data[i15].re;
+  for (i8 = 0; i8 < loop_ub; i8++) {
+    b->data[i8] = Dc->data[i8].re;
   }
 
   c_sqrt(b);
   emxInit_real_T(&yj, 2);
   if ((V->size[1] == 1) || (b->size[0] == 1)) {
-    i15 = yj->size[0] * yj->size[1];
+    i8 = yj->size[0] * yj->size[1];
     yj->size[0] = V->size[0];
     yj->size[1] = b->size[1];
-    emxEnsureCapacity((emxArray__common *)yj, i15, (int)sizeof(double));
+    emxEnsureCapacity((emxArray__common *)yj, i8, (int)sizeof(double));
     loop_ub = V->size[0];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = b->size[1];
-      for (i16 = 0; i16 < br; i16++) {
-        yj->data[i15 + yj->size[0] * i16] = 0.0;
-        nx = V->size[1];
-        for (i17 = 0; i17 < nx; i17++) {
-          yj->data[i15 + yj->size[0] * i16] += V->data[i15 + V->size[0] * i17] *
-            b->data[i17 + b->size[0] * i16];
+      for (i9 = 0; i9 < br; i9++) {
+        yj->data[i8 + yj->size[0] * i9] = 0.0;
+        vstride = V->size[1];
+        for (k1 = 0; k1 < vstride; k1++) {
+          yj->data[i8 + yj->size[0] * i9] += V->data[i8 + V->size[0] * k1] *
+            b->data[k1 + b->size[0] * i9];
         }
       }
     }
   } else {
     k = V->size[1];
-    vstride = V->size[0];
-    nx = b->size[1];
-    i15 = yj->size[0] * yj->size[1];
-    yj->size[0] = vstride;
-    yj->size[1] = nx;
-    emxEnsureCapacity((emxArray__common *)yj, i15, (int)sizeof(double));
+    nx = V->size[0];
+    vstride = b->size[1];
+    i8 = yj->size[0] * yj->size[1];
+    yj->size[0] = nx;
+    yj->size[1] = vstride;
+    emxEnsureCapacity((emxArray__common *)yj, i8, (int)sizeof(double));
     m = V->size[0];
-    i15 = yj->size[0] * yj->size[1];
-    emxEnsureCapacity((emxArray__common *)yj, i15, (int)sizeof(double));
+    i8 = yj->size[0] * yj->size[1];
+    emxEnsureCapacity((emxArray__common *)yj, i8, (int)sizeof(double));
     loop_ub = yj->size[1];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = yj->size[0];
-      for (i16 = 0; i16 < br; i16++) {
-        yj->data[i16 + yj->size[0] * i15] = 0.0;
+      for (i9 = 0; i9 < br; i9++) {
+        yj->data[i9 + yj->size[0] * i8] = 0.0;
       }
     }
 
@@ -793,8 +821,8 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       vstride = V->size[0] * (b->size[1] - 1);
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
-        i15 = nx + m;
-        for (ic = nx; ic + 1 <= i15; ic++) {
+        i8 = nx + m;
+        for (ic = nx; ic + 1 <= i8; ic++) {
           yj->data[ic] = 0.0;
         }
 
@@ -805,12 +833,12 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
         ar = 0;
-        i15 = br + k;
-        for (ib = br; ib + 1 <= i15; ib++) {
+        i8 = br + k;
+        for (ib = br; ib + 1 <= i8; ib++) {
           if (b->data[ib] != 0.0) {
             ia = ar;
-            i16 = nx + m;
-            for (ic = nx; ic + 1 <= i16; ic++) {
+            i9 = nx + m;
+            for (ic = nx; ic + 1 <= i9; ic++) {
               ia++;
               yj->data[ic] += b->data[ib] * V->data[ia - 1];
             }
@@ -825,51 +853,51 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
     }
   }
 
-  i15 = b->size[0] * b->size[1];
+  i8 = b->size[0] * b->size[1];
   b->size[0] = V->size[1];
   b->size[1] = V->size[0];
-  emxEnsureCapacity((emxArray__common *)b, i15, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
   loop_ub = V->size[0];
-  for (i15 = 0; i15 < loop_ub; i15++) {
+  for (i8 = 0; i8 < loop_ub; i8++) {
     br = V->size[1];
-    for (i16 = 0; i16 < br; i16++) {
-      b->data[i16 + b->size[0] * i15] = V->data[i15 + V->size[0] * i16];
+    for (i9 = 0; i9 < br; i9++) {
+      b->data[i9 + b->size[0] * i8] = V->data[i8 + V->size[0] * i9];
     }
   }
 
   if ((yj->size[1] == 1) || (b->size[0] == 1)) {
-    i15 = ss->size[0] * ss->size[1];
+    i8 = ss->size[0] * ss->size[1];
     ss->size[0] = yj->size[0];
     ss->size[1] = b->size[1];
-    emxEnsureCapacity((emxArray__common *)ss, i15, (int)sizeof(double));
+    emxEnsureCapacity((emxArray__common *)ss, i8, (int)sizeof(double));
     loop_ub = yj->size[0];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = b->size[1];
-      for (i16 = 0; i16 < br; i16++) {
-        ss->data[i15 + ss->size[0] * i16] = 0.0;
-        nx = yj->size[1];
-        for (i17 = 0; i17 < nx; i17++) {
-          ss->data[i15 + ss->size[0] * i16] += yj->data[i15 + yj->size[0] * i17]
-            * b->data[i17 + b->size[0] * i16];
+      for (i9 = 0; i9 < br; i9++) {
+        ss->data[i8 + ss->size[0] * i9] = 0.0;
+        vstride = yj->size[1];
+        for (k1 = 0; k1 < vstride; k1++) {
+          ss->data[i8 + ss->size[0] * i9] += yj->data[i8 + yj->size[0] * k1] *
+            b->data[k1 + b->size[0] * i9];
         }
       }
     }
   } else {
     k = yj->size[1];
-    vstride = yj->size[0];
-    nx = b->size[1];
-    i15 = ss->size[0] * ss->size[1];
-    ss->size[0] = vstride;
-    ss->size[1] = nx;
-    emxEnsureCapacity((emxArray__common *)ss, i15, (int)sizeof(double));
+    nx = yj->size[0];
+    vstride = b->size[1];
+    i8 = ss->size[0] * ss->size[1];
+    ss->size[0] = nx;
+    ss->size[1] = vstride;
+    emxEnsureCapacity((emxArray__common *)ss, i8, (int)sizeof(double));
     m = yj->size[0];
-    i15 = ss->size[0] * ss->size[1];
-    emxEnsureCapacity((emxArray__common *)ss, i15, (int)sizeof(double));
+    i8 = ss->size[0] * ss->size[1];
+    emxEnsureCapacity((emxArray__common *)ss, i8, (int)sizeof(double));
     loop_ub = ss->size[1];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = ss->size[0];
-      for (i16 = 0; i16 < br; i16++) {
-        ss->data[i16 + ss->size[0] * i15] = 0.0;
+      for (i9 = 0; i9 < br; i9++) {
+        ss->data[i9 + ss->size[0] * i8] = 0.0;
       }
     }
 
@@ -878,8 +906,8 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       vstride = yj->size[0] * (b->size[1] - 1);
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
-        i15 = nx + m;
-        for (ic = nx; ic + 1 <= i15; ic++) {
+        i8 = nx + m;
+        for (ic = nx; ic + 1 <= i8; ic++) {
           ss->data[ic] = 0.0;
         }
 
@@ -890,12 +918,12 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
         ar = 0;
-        i15 = br + k;
-        for (ib = br; ib + 1 <= i15; ib++) {
+        i8 = br + k;
+        for (ib = br; ib + 1 <= i8; ib++) {
           if (b->data[ib] != 0.0) {
             ia = ar;
-            i16 = nx + m;
-            for (ic = nx; ic + 1 <= i16; ic++) {
+            i9 = nx + m;
+            for (ic = nx; ic + 1 <= i9; ic++) {
               ia++;
               ss->data[ic] += b->data[ib] * yj->data[ia - 1];
             }
@@ -910,61 +938,61 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
     }
   }
 
-  i15 = a->size[0] * a->size[1];
+  i8 = a->size[0] * a->size[1];
   a->size[0] = x->size[0];
   a->size[1] = x->size[1];
-  emxEnsureCapacity((emxArray__common *)a, i15, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)a, i8, (int)sizeof(double));
   loop_ub = x->size[0] * x->size[1];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    a->data[i15] = x->data[i15];
+  for (i8 = 0; i8 < loop_ub; i8++) {
+    a->data[i8] = x->data[i8];
   }
 
   emxInit_real_T(&b_x, 2);
   if ((x->size[1] == 1) || (ss->size[0] == 1)) {
-    i15 = b_x->size[0] * b_x->size[1];
+    i8 = b_x->size[0] * b_x->size[1];
     b_x->size[0] = x->size[0];
     b_x->size[1] = ss->size[1];
-    emxEnsureCapacity((emxArray__common *)b_x, i15, (int)sizeof(double));
+    emxEnsureCapacity((emxArray__common *)b_x, i8, (int)sizeof(double));
     loop_ub = x->size[0];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = ss->size[1];
-      for (i16 = 0; i16 < br; i16++) {
-        b_x->data[i15 + b_x->size[0] * i16] = 0.0;
-        nx = x->size[1];
-        for (i17 = 0; i17 < nx; i17++) {
-          b_x->data[i15 + b_x->size[0] * i16] += x->data[i15 + x->size[0] * i17]
-            * ss->data[i17 + ss->size[0] * i16];
+      for (i9 = 0; i9 < br; i9++) {
+        b_x->data[i8 + b_x->size[0] * i9] = 0.0;
+        vstride = x->size[1];
+        for (k1 = 0; k1 < vstride; k1++) {
+          b_x->data[i8 + b_x->size[0] * i9] += x->data[i8 + x->size[0] * k1] *
+            ss->data[k1 + ss->size[0] * i9];
         }
       }
     }
 
-    i15 = x->size[0] * x->size[1];
+    i8 = x->size[0] * x->size[1];
     x->size[0] = b_x->size[0];
     x->size[1] = b_x->size[1];
-    emxEnsureCapacity((emxArray__common *)x, i15, (int)sizeof(double));
+    emxEnsureCapacity((emxArray__common *)x, i8, (int)sizeof(double));
     loop_ub = b_x->size[1];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = b_x->size[0];
-      for (i16 = 0; i16 < br; i16++) {
-        x->data[i16 + x->size[0] * i15] = b_x->data[i16 + b_x->size[0] * i15];
+      for (i9 = 0; i9 < br; i9++) {
+        x->data[i9 + x->size[0] * i8] = b_x->data[i9 + b_x->size[0] * i8];
       }
     }
   } else {
     k = x->size[1];
-    vstride = x->size[0];
-    nx = ss->size[1];
-    i15 = x->size[0] * x->size[1];
-    x->size[0] = vstride;
-    x->size[1] = nx;
-    emxEnsureCapacity((emxArray__common *)x, i15, (int)sizeof(double));
+    nx = x->size[0];
+    vstride = ss->size[1];
+    i8 = x->size[0] * x->size[1];
+    x->size[0] = nx;
+    x->size[1] = vstride;
+    emxEnsureCapacity((emxArray__common *)x, i8, (int)sizeof(double));
     m = a->size[0];
-    i15 = x->size[0] * x->size[1];
-    emxEnsureCapacity((emxArray__common *)x, i15, (int)sizeof(double));
+    i8 = x->size[0] * x->size[1];
+    emxEnsureCapacity((emxArray__common *)x, i8, (int)sizeof(double));
     loop_ub = x->size[1];
-    for (i15 = 0; i15 < loop_ub; i15++) {
+    for (i8 = 0; i8 < loop_ub; i8++) {
       br = x->size[0];
-      for (i16 = 0; i16 < br; i16++) {
-        x->data[i16 + x->size[0] * i15] = 0.0;
+      for (i9 = 0; i9 < br; i9++) {
+        x->data[i9 + x->size[0] * i8] = 0.0;
       }
     }
 
@@ -973,8 +1001,8 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       vstride = a->size[0] * (ss->size[1] - 1);
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
-        i15 = nx + m;
-        for (ic = nx; ic + 1 <= i15; ic++) {
+        i8 = nx + m;
+        for (ic = nx; ic + 1 <= i8; ic++) {
           x->data[ic] = 0.0;
         }
 
@@ -985,12 +1013,12 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
       nx = 0;
       while ((m > 0) && (nx <= vstride)) {
         ar = 0;
-        i15 = br + k;
-        for (ib = br; ib + 1 <= i15; ib++) {
+        i8 = br + k;
+        for (ib = br; ib + 1 <= i8; ib++) {
           if (ss->data[ib] != 0.0) {
             ia = ar;
-            i16 = nx + m;
-            for (ic = nx; ic + 1 <= i16; ic++) {
+            i9 = nx + m;
+            for (ic = nx; ic + 1 <= i9; ic++) {
               ia++;
               x->data[ic] += ss->data[ib] * a->data[ia - 1];
             }
@@ -1006,7 +1034,44 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
   }
 
   emxFree_real_T(&b_x);
-  empty_non_axis_sizes = b_strcmp(method);
+  emxInit_char_T(&b_method, 2);
+  i8 = b_method->size[0] * b_method->size[1];
+  b_method->size[0] = method->size[0];
+  b_method->size[1] = method->size[1];
+  emxEnsureCapacity((emxArray__common *)b_method, i8, (int)sizeof(char));
+  loop_ub = method->size[0] * method->size[1];
+  for (i8 = 0; i8 < loop_ub; i8++) {
+    b_method->data[i8] = method->data[i8];
+  }
+
+  upper(b_method, method);
+  sort(which_dim);
+  emxFree_char_T(&b_method);
+  if (which_dim->data[0] != p) {
+    emxInit_real_T(&b_p, 2);
+    i8 = b_p->size[0] * b_p->size[1];
+    b_p->size[0] = 1;
+    b_p->size[1] = 1 + which_dim->size[1];
+    emxEnsureCapacity((emxArray__common *)b_p, i8, (int)sizeof(double));
+    b_p->data[0] = p;
+    loop_ub = which_dim->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      b_p->data[b_p->size[0] * (i8 + 1)] = which_dim->data[which_dim->size[0] *
+        i8];
+    }
+
+    i8 = which_dim->size[0] * which_dim->size[1];
+    which_dim->size[0] = 1;
+    which_dim->size[1] = b_p->size[1];
+    emxEnsureCapacity((emxArray__common *)which_dim, i8, (int)sizeof(double));
+    loop_ub = b_p->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      which_dim->data[which_dim->size[0] * i8] = b_p->data[b_p->size[0] * i8];
+    }
+
+    emxFree_real_T(&b_p);
+  }
+
   emxInit_real_T(&ky1, 2);
   emxInit_real_T(&ky2, 2);
   emxInit_real_T(&DD, 2);
@@ -1015,1295 +1080,1790 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
   emxInit_real_T(&U, 2);
   emxInit_real_T1(&s, 1);
   emxInit_real_T1(&dc, 1);
-  emxInit_int32_T(&iidx, 1);
+  emxInit_int32_T1(&iidx, 1);
   emxInit_boolean_T1(&c_x, 1);
-  emxInit_int32_T(&ii, 1);
+  emxInit_int32_T1(&ii, 1);
   emxInit_real_T(&b_s, 2);
   emxInit_real_T(&b_Dc, 2);
-  emxInit_boolean_T(&c_ss, 2);
+  emxInit_boolean_T(&c_yi, 2);
   emxInit_real_T(&c_qx, 2);
   emxInit_real_T(&b_ky, 2);
   emxInit_real_T(&b_V, 2);
   emxInit_real_T(&c_V, 2);
-  guard2 = false;
-  if (empty_non_axis_sizes) {
-    guard2 = true;
+  if (b_strcmp(method) || c_strcmp(method)) {
+    i8 = ky->size[0] * ky->size[1];
+    ky->size[0] = y->size[0];
+    ky->size[1] = y->size[1];
+    emxEnsureCapacity((emxArray__common *)ky, i8, (int)sizeof(double));
+    loop_ub = y->size[0] * y->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      ky->data[i8] = y->data[i8];
+    }
+
+    i8 = ky1->size[0] * ky1->size[1];
+    ky1->size[0] = y->size[0];
+    ky1->size[1] = y->size[1];
+    emxEnsureCapacity((emxArray__common *)ky1, i8, (int)sizeof(double));
+    loop_ub = y->size[0] * y->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      ky1->data[i8] = y->data[i8];
+    }
+
+    i8 = ky2->size[0] * ky2->size[1];
+    ky2->size[0] = 1;
+    ky2->size[1] = 1;
+    emxEnsureCapacity((emxArray__common *)ky2, i8, (int)sizeof(double));
+    ky2->data[0] = 1.0;
+    i8 = DD->size[0] * DD->size[1];
+    DD->size[0] = 1;
+    DD->size[1] = 1;
+    emxEnsureCapacity((emxArray__common *)DD, i8, (int)sizeof(double));
+    DD->data[0] = 1.0;
   } else {
-    empty_non_axis_sizes = c_strcmp(method);
-    if (empty_non_axis_sizes) {
-      guard2 = true;
+    if (99 <= n) {
+      nm1d2 = 99;
     } else {
-      if (99 <= n) {
-        b_m = 99;
-      } else {
-        b_m = n;
-      }
+      nm1d2 = n;
+    }
 
-      pp = std::floor(rt_powd_snf((double)n, 0.6));
-      if ((b_m >= pp) || rtIsNaN(pp)) {
-        pp = b_m;
-      }
+    pp = std::floor(rt_powd_snf((double)n, 0.6));
+    if ((nm1d2 >= pp) || rtIsNaN(pp)) {
+      pp = nm1d2;
+    }
 
-      /*  define 100 quantiles */
-      if (rtIsNaN(pp)) {
-        i15 = qx->size[0] * qx->size[1];
-        qx->size[0] = 1;
-        qx->size[1] = 1;
-        emxEnsureCapacity((emxArray__common *)qx, i15, (int)sizeof(double));
-        qx->data[0] = rtNaN;
-      } else if (pp < 1.0) {
-        i15 = qx->size[0] * qx->size[1];
-        qx->size[0] = 1;
-        qx->size[1] = 0;
-        emxEnsureCapacity((emxArray__common *)qx, i15, (int)sizeof(double));
-      } else if (rtIsInf(pp) && (1.0 == pp)) {
-        i15 = qx->size[0] * qx->size[1];
-        qx->size[0] = 1;
-        qx->size[1] = 1;
-        emxEnsureCapacity((emxArray__common *)qx, i15, (int)sizeof(double));
-        qx->data[0] = rtNaN;
-      } else {
-        i15 = qx->size[0] * qx->size[1];
-        qx->size[0] = 1;
-        qx->size[1] = (int)(pp - 1.0) + 1;
-        emxEnsureCapacity((emxArray__common *)qx, i15, (int)sizeof(double));
-        loop_ub = (int)(pp - 1.0);
-        for (i15 = 0; i15 <= loop_ub; i15++) {
-          qx->data[qx->size[0] * i15] = 1.0 + (double)i15;
-        }
-      }
-
-      i15 = c_qx->size[0] * c_qx->size[1];
-      c_qx->size[0] = 1;
-      c_qx->size[1] = qx->size[1];
-      emxEnsureCapacity((emxArray__common *)c_qx, i15, (int)sizeof(double));
-      loop_ub = qx->size[0] * qx->size[1];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        c_qx->data[i15] = qx->data[i15] / (pp + 1.0);
-      }
-
-      quantile(y, c_qx, b_qx);
-      if ((b_qx->size[0] == 0) || (b_qx->size[1] == 0)) {
-        b_m = 0;
-      } else {
-        nx = b_qx->size[0];
-        b_m = b_qx->size[1];
-        if (nx >= b_m) {
-          b_m = nx;
-        }
-      }
-
-      nx = b_qx->size[0] * b_qx->size[1];
-      i15 = qx->size[0] * qx->size[1];
+    if (rtIsNaN(pp)) {
+      i8 = qx->size[0] * qx->size[1];
       qx->size[0] = 1;
-      qx->size[1] = b_m;
-      emxEnsureCapacity((emxArray__common *)qx, i15, (int)sizeof(double));
-      for (k = 0; k + 1 <= nx; k++) {
-        qx->data[k] = b_qx->data[k];
+      qx->size[1] = 1;
+      emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof(double));
+      qx->data[0] = rtNaN;
+    } else if (pp < 1.0) {
+      i8 = qx->size[0] * qx->size[1];
+      qx->size[0] = 1;
+      qx->size[1] = 0;
+      emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof(double));
+    } else if (rtIsInf(pp) && (1.0 == pp)) {
+      i8 = qx->size[0] * qx->size[1];
+      qx->size[0] = 1;
+      qx->size[1] = 1;
+      emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof(double));
+      qx->data[0] = rtNaN;
+    } else {
+      i8 = qx->size[0] * qx->size[1];
+      qx->size[0] = 1;
+      qx->size[1] = (int)(pp - 1.0) + 1;
+      emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof(double));
+      loop_ub = (int)(pp - 1.0);
+      for (i8 = 0; i8 <= loop_ub; i8++) {
+        qx->data[qx->size[0] * i8] = 1.0 + (double)i8;
       }
+    }
 
-      /* qx = unique(qx); %Jan 13 Change for C */
-      c_repmat(y, (double)qx->size[1], ss);
-      repmat(qx, (double)n, yj);
-      i15 = c_ss->size[0] * c_ss->size[1];
-      c_ss->size[0] = ss->size[0];
-      c_ss->size[1] = ss->size[1];
-      emxEnsureCapacity((emxArray__common *)c_ss, i15, (int)sizeof(boolean_T));
-      loop_ub = ss->size[0] * ss->size[1];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        c_ss->data[i15] = (ss->data[i15] - yj->data[i15] < 0.0);
-      }
+    i8 = c_qx->size[0] * c_qx->size[1];
+    c_qx->size[0] = 1;
+    c_qx->size[1] = qx->size[1];
+    emxEnsureCapacity((emxArray__common *)c_qx, i8, (int)sizeof(double));
+    loop_ub = qx->size[0] * qx->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      c_qx->data[i8] = qx->data[i8] / (pp + 1.0);
+    }
 
-      b_abs(c_ss, ky);
-      b_mean(ky, qx);
-      repmat(qx, (double)n, a);
-      i15 = ky->size[0] * ky->size[1];
-      emxEnsureCapacity((emxArray__common *)ky, i15, (int)sizeof(double));
-      b_m = ky->size[0];
-      vstride = ky->size[1];
-      loop_ub = b_m * vstride;
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        ky->data[i15] -= a->data[i15];
-      }
-
-      c_mean(ky, s);
-      b_repmat(s, (double)ky->size[1], ky1);
-      i15 = ky1->size[0] * ky1->size[1];
-      ky1->size[0] = ky->size[0];
-      ky1->size[1] = ky->size[1];
-      emxEnsureCapacity((emxArray__common *)ky1, i15, (int)sizeof(double));
-      loop_ub = ky->size[0] * ky->size[1];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        ky1->data[i15] = ky->data[i15] - ky1->data[i15];
-      }
-
-      /*  LATEST CHANGED */
-      b_mean(ky1, qx);
-      repmat(qx, (double)n, a);
-      i15 = ky1->size[0] * ky1->size[1];
-      emxEnsureCapacity((emxArray__common *)ky1, i15, (int)sizeof(double));
-      b_m = ky1->size[0];
-      vstride = ky1->size[1];
-      loop_ub = b_m * vstride;
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        ky1->data[i15] -= a->data[i15];
-      }
-
-      /*  LATEST CHANGED */
-      if (!((ky->size[0] == 0) || (ky->size[1] == 0))) {
-        nx = ky->size[0];
-      } else if (!((ky1->size[0] == 0) || (ky1->size[1] == 0))) {
-        nx = ky1->size[0];
-      } else {
-        nx = ky->size[0];
-        if (!(nx >= 0)) {
-          nx = 0;
-        }
-
-        if (ky1->size[0] > nx) {
-          nx = ky1->size[0];
-        }
-      }
-
-      empty_non_axis_sizes = (nx == 0);
-      if (empty_non_axis_sizes || (!((ky->size[0] == 0) || (ky->size[1] == 0))))
-      {
-        b_m = ky->size[1];
-      } else {
-        b_m = 0;
-      }
-
-      if (empty_non_axis_sizes || (!((ky1->size[0] == 0) || (ky1->size[1] == 0))))
-      {
-        vstride = ky1->size[1];
-      } else {
-        vstride = 0;
-      }
-
-      i15 = b_ky->size[0] * b_ky->size[1];
-      b_ky->size[0] = nx;
-      b_ky->size[1] = b_m + vstride;
-      emxEnsureCapacity((emxArray__common *)b_ky, i15, (int)sizeof(double));
-      for (i15 = 0; i15 < b_m; i15++) {
-        for (i16 = 0; i16 < nx; i16++) {
-          b_ky->data[i16 + b_ky->size[0] * i15] = ky->data[i16 + nx * i15];
-        }
-      }
-
-      for (i15 = 0; i15 < vstride; i15++) {
-        for (i16 = 0; i16 < nx; i16++) {
-          b_ky->data[i16 + b_ky->size[0] * (i15 + b_m)] = ky1->data[i16 + nx *
-            i15];
-        }
-      }
-
-      i15 = ky->size[0] * ky->size[1];
-      ky->size[0] = b_ky->size[0];
-      ky->size[1] = b_ky->size[1];
-      emxEnsureCapacity((emxArray__common *)ky, i15, (int)sizeof(double));
-      loop_ub = b_ky->size[1];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        br = b_ky->size[0];
-        for (i16 = 0; i16 < br; i16++) {
-          ky->data[i16 + ky->size[0] * i15] = b_ky->data[i16 + b_ky->size[0] *
-            i15];
-        }
-      }
-
-      /*  LATEST CHANGED */
-      /* clear yi ky1; %Jan 13 not supported */
-      /* yi = []; ky1 = []; %%% latest changes by XIA */
-      i15 = a->size[0] * a->size[1];
-      a->size[0] = ky->size[1];
-      a->size[1] = ky->size[0];
-      emxEnsureCapacity((emxArray__common *)a, i15, (int)sizeof(double));
-      loop_ub = ky->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        br = ky->size[1];
-        for (i16 = 0; i16 < br; i16++) {
-          a->data[i16 + a->size[0] * i15] = ky->data[i15 + ky->size[0] * i16];
-        }
-      }
-
-      if ((a->size[1] == 1) || (ky->size[0] == 1)) {
-        i15 = C->size[0] * C->size[1];
-        C->size[0] = a->size[0];
-        C->size[1] = ky->size[1];
-        emxEnsureCapacity((emxArray__common *)C, i15, (int)sizeof(double));
-        loop_ub = a->size[0];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = ky->size[1];
-          for (i16 = 0; i16 < br; i16++) {
-            C->data[i15 + C->size[0] * i16] = 0.0;
-            nx = a->size[1];
-            for (i17 = 0; i17 < nx; i17++) {
-              C->data[i15 + C->size[0] * i16] += a->data[i15 + a->size[0] * i17]
-                * ky->data[i17 + ky->size[0] * i16];
-            }
-          }
-        }
-      } else {
-        k = a->size[1];
-        vstride = a->size[0];
-        nx = ky->size[1];
-        i15 = C->size[0] * C->size[1];
-        C->size[0] = vstride;
-        C->size[1] = nx;
-        emxEnsureCapacity((emxArray__common *)C, i15, (int)sizeof(double));
-        m = a->size[0];
-        i15 = C->size[0] * C->size[1];
-        emxEnsureCapacity((emxArray__common *)C, i15, (int)sizeof(double));
-        loop_ub = C->size[1];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = C->size[0];
-          for (i16 = 0; i16 < br; i16++) {
-            C->data[i16 + C->size[0] * i15] = 0.0;
-          }
-        }
-
-        if ((a->size[0] == 0) || (ky->size[1] == 0)) {
-        } else {
-          vstride = a->size[0] * (ky->size[1] - 1);
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            i15 = nx + m;
-            for (ic = nx; ic + 1 <= i15; ic++) {
-              C->data[ic] = 0.0;
-            }
-
-            nx += m;
-          }
-
-          br = 0;
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            ar = 0;
-            i15 = br + k;
-            for (ib = br; ib + 1 <= i15; ib++) {
-              if (ky->data[ib] != 0.0) {
-                ia = ar;
-                i16 = nx + m;
-                for (ic = nx; ic + 1 <= i16; ic++) {
-                  ia++;
-                  C->data[ic] += ky->data[ib] * a->data[ia - 1];
-                }
-              }
-
-              ar += m;
-            }
-
-            br += k;
-            nx += m;
-          }
-        }
-      }
-
-      /* Jan 7 */
-      eig(C, Vc, Dc);
-
-      /* Jan 7 */
-      i15 = V->size[0] * V->size[1];
-      V->size[0] = Vc->size[0];
-      V->size[1] = Vc->size[1];
-      emxEnsureCapacity((emxArray__common *)V, i15, (int)sizeof(double));
-      loop_ub = Vc->size[0] * Vc->size[1];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        V->data[i15] = Vc->data[i15].re;
-      }
-
-      /* Jan 13 */
-      /* clear C; %Jan 13 not supported %Jan 7 */
-      i15 = b_Dc->size[0] * b_Dc->size[1];
-      b_Dc->size[0] = Dc->size[0];
-      b_Dc->size[1] = Dc->size[1];
-      emxEnsureCapacity((emxArray__common *)b_Dc, i15, (int)sizeof(double));
-      loop_ub = Dc->size[0] * Dc->size[1];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        b_Dc->data[i15] = Dc->data[i15].re;
-      }
-
-      diag(b_Dc, s);
-      c_abs(s, dc);
-      d_sort(dc, iidx);
-
-      /* Jan 7 */
-      b_m = 2;
-      if (dc->size[0] != 1) {
-        b_m = 1;
-      }
-
-      i15 = s->size[0];
-      s->size[0] = dc->size[0];
-      emxEnsureCapacity((emxArray__common *)s, i15, (int)sizeof(double));
-      loop_ub = dc->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        s->data[i15] = dc->data[i15];
-      }
-
-      if (b_m <= 1) {
-        i15 = dc->size[0];
-      } else {
-        i15 = 1;
-      }
-
-      if ((!(dc->size[0] == 0)) && (i15 > 1)) {
-        vstride = 1;
-        k = 1;
-        while (k <= b_m - 1) {
-          vstride *= dc->size[0];
-          k = 2;
-        }
-
-        for (j = 0; j + 1 <= vstride; j++) {
-          for (k = 1; k < i15; k++) {
-            s->data[j + k * vstride] += s->data[j + (k - 1) * vstride];
-          }
-        }
-      }
-
-      pp = b_sum(dc);
-      i15 = c_x->size[0];
-      c_x->size[0] = s->size[0];
-      emxEnsureCapacity((emxArray__common *)c_x, i15, (int)sizeof(boolean_T));
-      loop_ub = s->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        c_x->data[i15] = (s->data[i15] / pp >= 0.99);
-      }
-
-      nx = c_x->size[0];
+    quantile(y, c_qx, b_qx);
+    if ((b_qx->size[0] == 0) || (b_qx->size[1] == 0)) {
       vstride = 0;
-      i15 = ii->size[0];
-      ii->size[0] = c_x->size[0];
-      emxEnsureCapacity((emxArray__common *)ii, i15, (int)sizeof(int));
-      b_m = 1;
-      exitg2 = false;
-      while ((!exitg2) && (b_m <= nx)) {
-        b_guard1 = false;
-        if (c_x->data[b_m - 1]) {
-          vstride++;
-          ii->data[vstride - 1] = b_m;
-          if (vstride >= nx) {
-            exitg2 = true;
-          } else {
-            b_guard1 = true;
+    } else {
+      nx = b_qx->size[0];
+      vstride = b_qx->size[1];
+      if (nx >= vstride) {
+        vstride = nx;
+      }
+    }
+
+    nx = b_qx->size[0] * b_qx->size[1];
+    i8 = qx->size[0] * qx->size[1];
+    qx->size[0] = 1;
+    qx->size[1] = vstride;
+    emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof(double));
+    for (k = 0; k + 1 <= nx; k++) {
+      qx->data[k] = b_qx->data[k];
+    }
+
+    /* change for C */
+    /* qx = unique(qx);%change for C */
+    b_repmat(y, (double)qx->size[1], yi);
+    repmat(qx, (double)n, yj);
+    i8 = c_yi->size[0] * c_yi->size[1];
+    c_yi->size[0] = yi->size[0];
+    c_yi->size[1] = yi->size[1];
+    emxEnsureCapacity((emxArray__common *)c_yi, i8, (int)sizeof(boolean_T));
+    loop_ub = yi->size[0] * yi->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      c_yi->data[i8] = (yi->data[i8] - yj->data[i8] < 0.0);
+    }
+
+    b_abs(c_yi, ky);
+    mean(ky, qx);
+    repmat(qx, (double)n, a);
+    i8 = ky->size[0] * ky->size[1];
+    emxEnsureCapacity((emxArray__common *)ky, i8, (int)sizeof(double));
+    nm1d2 = ky->size[0];
+    vstride = ky->size[1];
+    loop_ub = nm1d2 * vstride;
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      ky->data[i8] -= a->data[i8];
+    }
+
+    b_mean(ky, s);
+    c_repmat(s, (double)ky->size[1], ky1);
+    i8 = ky1->size[0] * ky1->size[1];
+    ky1->size[0] = ky->size[0];
+    ky1->size[1] = ky->size[1];
+    emxEnsureCapacity((emxArray__common *)ky1, i8, (int)sizeof(double));
+    loop_ub = ky->size[0] * ky->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      ky1->data[i8] = ky->data[i8] - ky1->data[i8];
+    }
+
+    mean(ky1, qx);
+    repmat(qx, (double)n, a);
+    i8 = ky1->size[0] * ky1->size[1];
+    emxEnsureCapacity((emxArray__common *)ky1, i8, (int)sizeof(double));
+    nm1d2 = ky1->size[0];
+    vstride = ky1->size[1];
+    loop_ub = nm1d2 * vstride;
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      ky1->data[i8] -= a->data[i8];
+    }
+
+    if (!((ky->size[0] == 0) || (ky->size[1] == 0))) {
+      nx = ky->size[0];
+    } else if (!((ky1->size[0] == 0) || (ky1->size[1] == 0))) {
+      nx = ky1->size[0];
+    } else {
+      nx = ky->size[0];
+      if (!(nx >= 0)) {
+        nx = 0;
+      }
+
+      if (ky1->size[0] > nx) {
+        nx = ky1->size[0];
+      }
+    }
+
+    empty_non_axis_sizes = (nx == 0);
+    if (empty_non_axis_sizes || (!((ky->size[0] == 0) || (ky->size[1] == 0)))) {
+      nm1d2 = ky->size[1];
+    } else {
+      nm1d2 = 0;
+    }
+
+    if (empty_non_axis_sizes || (!((ky1->size[0] == 0) || (ky1->size[1] == 0))))
+    {
+      vstride = ky1->size[1];
+    } else {
+      vstride = 0;
+    }
+
+    i8 = b_ky->size[0] * b_ky->size[1];
+    b_ky->size[0] = nx;
+    b_ky->size[1] = nm1d2 + vstride;
+    emxEnsureCapacity((emxArray__common *)b_ky, i8, (int)sizeof(double));
+    for (i8 = 0; i8 < nm1d2; i8++) {
+      for (i9 = 0; i9 < nx; i9++) {
+        b_ky->data[i9 + b_ky->size[0] * i8] = ky->data[i9 + nx * i8];
+      }
+    }
+
+    for (i8 = 0; i8 < vstride; i8++) {
+      for (i9 = 0; i9 < nx; i9++) {
+        b_ky->data[i9 + b_ky->size[0] * (i8 + nm1d2)] = ky1->data[i9 + nx * i8];
+      }
+    }
+
+    i8 = ky->size[0] * ky->size[1];
+    ky->size[0] = b_ky->size[0];
+    ky->size[1] = b_ky->size[1];
+    emxEnsureCapacity((emxArray__common *)ky, i8, (int)sizeof(double));
+    loop_ub = b_ky->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      br = b_ky->size[0];
+      for (i9 = 0; i9 < br; i9++) {
+        ky->data[i9 + ky->size[0] * i8] = b_ky->data[i9 + b_ky->size[0] * i8];
+      }
+    }
+
+    /* clear yi ky1; */
+    i8 = a->size[0] * a->size[1];
+    a->size[0] = ky->size[1];
+    a->size[1] = ky->size[0];
+    emxEnsureCapacity((emxArray__common *)a, i8, (int)sizeof(double));
+    loop_ub = ky->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      br = ky->size[1];
+      for (i9 = 0; i9 < br; i9++) {
+        a->data[i9 + a->size[0] * i8] = ky->data[i8 + ky->size[0] * i9];
+      }
+    }
+
+    if ((a->size[1] == 1) || (ky->size[0] == 1)) {
+      i8 = C->size[0] * C->size[1];
+      C->size[0] = a->size[0];
+      C->size[1] = ky->size[1];
+      emxEnsureCapacity((emxArray__common *)C, i8, (int)sizeof(double));
+      loop_ub = a->size[0];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = ky->size[1];
+        for (i9 = 0; i9 < br; i9++) {
+          C->data[i8 + C->size[0] * i9] = 0.0;
+          vstride = a->size[1];
+          for (k1 = 0; k1 < vstride; k1++) {
+            C->data[i8 + C->size[0] * i9] += a->data[i8 + a->size[0] * k1] *
+              ky->data[k1 + ky->size[0] * i9];
           }
+        }
+      }
+    } else {
+      k = a->size[1];
+      nx = a->size[0];
+      vstride = ky->size[1];
+      i8 = C->size[0] * C->size[1];
+      C->size[0] = nx;
+      C->size[1] = vstride;
+      emxEnsureCapacity((emxArray__common *)C, i8, (int)sizeof(double));
+      m = a->size[0];
+      i8 = C->size[0] * C->size[1];
+      emxEnsureCapacity((emxArray__common *)C, i8, (int)sizeof(double));
+      loop_ub = C->size[1];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = C->size[0];
+        for (i9 = 0; i9 < br; i9++) {
+          C->data[i9 + C->size[0] * i8] = 0.0;
+        }
+      }
+
+      if ((a->size[0] == 0) || (ky->size[1] == 0)) {
+      } else {
+        vstride = a->size[0] * (ky->size[1] - 1);
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          i8 = nx + m;
+          for (ic = nx; ic + 1 <= i8; ic++) {
+            C->data[ic] = 0.0;
+          }
+
+          nx += m;
+        }
+
+        br = 0;
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          ar = 0;
+          i8 = br + k;
+          for (ib = br; ib + 1 <= i8; ib++) {
+            if (ky->data[ib] != 0.0) {
+              ia = ar;
+              i9 = nx + m;
+              for (ic = nx; ic + 1 <= i9; ic++) {
+                ia++;
+                C->data[ic] += ky->data[ib] * a->data[ia - 1];
+              }
+            }
+
+            ar += m;
+          }
+
+          br += k;
+          nx += m;
+        }
+      }
+    }
+
+    eig(C, Vc, Dc);
+
+    /* change for C */
+    i8 = V->size[0] * V->size[1];
+    V->size[0] = Vc->size[0];
+    V->size[1] = Vc->size[1];
+    emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
+    loop_ub = Vc->size[0] * Vc->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      V->data[i8] = Vc->data[i8].re;
+    }
+
+    /* change for C */
+    /* change for C */
+    /* clear C; */
+    i8 = b_Dc->size[0] * b_Dc->size[1];
+    b_Dc->size[0] = Dc->size[0];
+    b_Dc->size[1] = Dc->size[1];
+    emxEnsureCapacity((emxArray__common *)b_Dc, i8, (int)sizeof(double));
+    loop_ub = Dc->size[0] * Dc->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      b_Dc->data[i8] = Dc->data[i8].re;
+    }
+
+    diag(b_Dc, s);
+    c_abs(s, dc);
+    c_sort(dc, iidx);
+    nm1d2 = 2;
+    if (dc->size[0] != 1) {
+      nm1d2 = 1;
+    }
+
+    i8 = s->size[0];
+    s->size[0] = dc->size[0];
+    emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+    loop_ub = dc->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      s->data[i8] = dc->data[i8];
+    }
+
+    if (nm1d2 <= 1) {
+      i8 = dc->size[0];
+    } else {
+      i8 = 1;
+    }
+
+    if ((!(dc->size[0] == 0)) && (i8 > 1)) {
+      vstride = 1;
+      k = 1;
+      while (k <= nm1d2 - 1) {
+        vstride *= dc->size[0];
+        k = 2;
+      }
+
+      for (j = 0; j + 1 <= vstride; j++) {
+        for (k = 1; k < i8; k++) {
+          s->data[j + k * vstride] += s->data[j + (k - 1) * vstride];
+        }
+      }
+    }
+
+    pp = sum(dc);
+    i8 = c_x->size[0];
+    c_x->size[0] = s->size[0];
+    emxEnsureCapacity((emxArray__common *)c_x, i8, (int)sizeof(boolean_T));
+    loop_ub = s->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      c_x->data[i8] = (s->data[i8] / pp >= 0.99);
+    }
+
+    nx = c_x->size[0];
+    vstride = 0;
+    i8 = ii->size[0];
+    ii->size[0] = c_x->size[0];
+    emxEnsureCapacity((emxArray__common *)ii, i8, (int)sizeof(int));
+    nm1d2 = 1;
+    exitg2 = false;
+    while ((!exitg2) && (nm1d2 <= nx)) {
+      b_guard1 = false;
+      if (c_x->data[nm1d2 - 1]) {
+        vstride++;
+        ii->data[vstride - 1] = nm1d2;
+        if (vstride >= nx) {
+          exitg2 = true;
         } else {
           b_guard1 = true;
         }
-
-        if (b_guard1) {
-          b_m++;
-        }
-      }
-
-      if (c_x->size[0] == 1) {
-        if (vstride == 0) {
-          i15 = ii->size[0];
-          ii->size[0] = 0;
-          emxEnsureCapacity((emxArray__common *)ii, i15, (int)sizeof(int));
-        }
       } else {
-        i15 = ii->size[0];
-        if (1 > vstride) {
-          ii->size[0] = 0;
-        } else {
-          ii->size[0] = vstride;
+        b_guard1 = true;
+      }
+
+      if (b_guard1) {
+        nm1d2++;
+      }
+    }
+
+    if (c_x->size[0] == 1) {
+      if (vstride == 0) {
+        i8 = ii->size[0];
+        ii->size[0] = 0;
+        emxEnsureCapacity((emxArray__common *)ii, i8, (int)sizeof(int));
+      }
+    } else {
+      i8 = ii->size[0];
+      if (1 > vstride) {
+        ii->size[0] = 0;
+      } else {
+        ii->size[0] = vstride;
+      }
+
+      emxEnsureCapacity((emxArray__common *)ii, i8, (int)sizeof(int));
+    }
+
+    i8 = s->size[0];
+    s->size[0] = ii->size[0];
+    emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+    loop_ub = ii->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      s->data[i8] = ii->data[i8];
+    }
+
+    nx = s->size[0];
+    vstride = (int)s->data[0];
+    if (s->size[0] > 1) {
+      for (nm1d2 = 1; nm1d2 + 1 <= nx; nm1d2++) {
+        if ((int)s->data[nm1d2] < vstride) {
+          vstride = (int)s->data[nm1d2];
         }
-
-        emxEnsureCapacity((emxArray__common *)ii, i15, (int)sizeof(int));
       }
+    }
 
-      i15 = s->size[0];
-      s->size[0] = ii->size[0];
-      emxEnsureCapacity((emxArray__common *)s, i15, (int)sizeof(double));
-      loop_ub = ii->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        s->data[i15] = ii->data[i15];
+    nm1d2 = V->size[0];
+    i8 = b_V->size[0] * b_V->size[1];
+    b_V->size[0] = nm1d2;
+    b_V->size[1] = iidx->size[0];
+    emxEnsureCapacity((emxArray__common *)b_V, i8, (int)sizeof(double));
+    loop_ub = iidx->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      for (i9 = 0; i9 < nm1d2; i9++) {
+        b_V->data[i9 + b_V->size[0] * i8] = V->data[i9 + V->size[0] *
+          (iidx->data[i8] - 1)];
       }
+    }
 
-      nx = s->size[0];
-      vstride = (int)s->data[0];
-      if (s->size[0] > 1) {
-        for (b_m = 1; b_m + 1 <= nx; b_m++) {
-          if ((int)s->data[b_m] < vstride) {
-            vstride = (int)s->data[b_m];
+    i8 = V->size[0] * V->size[1];
+    V->size[0] = b_V->size[0];
+    V->size[1] = b_V->size[1];
+    emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
+    loop_ub = b_V->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      br = b_V->size[0];
+      for (i9 = 0; i9 < br; i9++) {
+        V->data[i9 + V->size[0] * i8] = b_V->data[i9 + b_V->size[0] * i8];
+      }
+    }
+
+    if (1 > vstride) {
+      loop_ub = 0;
+      br = 0;
+    } else {
+      loop_ub = vstride;
+      br = vstride;
+    }
+
+    nm1d2 = V->size[0];
+    i8 = c_V->size[0] * c_V->size[1];
+    c_V->size[0] = nm1d2;
+    c_V->size[1] = br;
+    emxEnsureCapacity((emxArray__common *)c_V, i8, (int)sizeof(double));
+    for (i8 = 0; i8 < br; i8++) {
+      for (i9 = 0; i9 < nm1d2; i9++) {
+        c_V->data[i9 + c_V->size[0] * i8] = V->data[i9 + V->size[0] * i8];
+      }
+    }
+
+    i8 = V->size[0] * V->size[1];
+    V->size[0] = c_V->size[0];
+    V->size[1] = c_V->size[1];
+    emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
+    br = c_V->size[1];
+    for (i8 = 0; i8 < br; i8++) {
+      vstride = c_V->size[0];
+      for (i9 = 0; i9 < vstride; i9++) {
+        V->data[i9 + V->size[0] * i8] = c_V->data[i9 + c_V->size[0] * i8];
+      }
+    }
+
+    if ((ky->size[1] == 1) || (V->size[0] == 1)) {
+      i8 = U->size[0] * U->size[1];
+      U->size[0] = ky->size[0];
+      U->size[1] = V->size[1];
+      emxEnsureCapacity((emxArray__common *)U, i8, (int)sizeof(double));
+      br = ky->size[0];
+      for (i8 = 0; i8 < br; i8++) {
+        vstride = V->size[1];
+        for (i9 = 0; i9 < vstride; i9++) {
+          U->data[i8 + U->size[0] * i9] = 0.0;
+          nm1d2 = ky->size[1];
+          for (k1 = 0; k1 < nm1d2; k1++) {
+            U->data[i8 + U->size[0] * i9] += ky->data[i8 + ky->size[0] * k1] *
+              V->data[k1 + V->size[0] * i9];
           }
         }
       }
-
-      /* Jan 7 */
-      b_m = V->size[0];
-      i15 = b_V->size[0] * b_V->size[1];
-      b_V->size[0] = b_m;
-      b_V->size[1] = iidx->size[0];
-      emxEnsureCapacity((emxArray__common *)b_V, i15, (int)sizeof(double));
-      loop_ub = iidx->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        for (i16 = 0; i16 < b_m; i16++) {
-          b_V->data[i16 + b_V->size[0] * i15] = V->data[i16 + V->size[0] *
-            (iidx->data[i15] - 1)];
+    } else {
+      k = ky->size[1];
+      nx = ky->size[0];
+      vstride = V->size[1];
+      i8 = U->size[0] * U->size[1];
+      U->size[0] = nx;
+      U->size[1] = vstride;
+      emxEnsureCapacity((emxArray__common *)U, i8, (int)sizeof(double));
+      m = ky->size[0];
+      i8 = U->size[0] * U->size[1];
+      emxEnsureCapacity((emxArray__common *)U, i8, (int)sizeof(double));
+      br = U->size[1];
+      for (i8 = 0; i8 < br; i8++) {
+        vstride = U->size[0];
+        for (i9 = 0; i9 < vstride; i9++) {
+          U->data[i9 + U->size[0] * i8] = 0.0;
         }
       }
 
-      i15 = V->size[0] * V->size[1];
-      V->size[0] = b_V->size[0];
-      V->size[1] = b_V->size[1];
-      emxEnsureCapacity((emxArray__common *)V, i15, (int)sizeof(double));
-      loop_ub = b_V->size[1];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        br = b_V->size[0];
-        for (i16 = 0; i16 < br; i16++) {
-          V->data[i16 + V->size[0] * i15] = b_V->data[i16 + b_V->size[0] * i15];
-        }
-      }
-
-      /* Jan 7 */
-      if (1 > vstride) {
-        loop_ub = 0;
+      if ((ky->size[0] == 0) || (V->size[1] == 0)) {
       } else {
-        loop_ub = vstride;
-      }
+        vstride = ky->size[0] * (V->size[1] - 1);
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          i8 = nx + m;
+          for (ic = nx; ic + 1 <= i8; ic++) {
+            U->data[ic] = 0.0;
+          }
 
-      /* Jan 7 */
-      if (1 > vstride) {
+          nx += m;
+        }
+
         br = 0;
-      } else {
-        br = vstride;
-      }
-
-      b_m = V->size[0];
-      i15 = c_V->size[0] * c_V->size[1];
-      c_V->size[0] = b_m;
-      c_V->size[1] = br;
-      emxEnsureCapacity((emxArray__common *)c_V, i15, (int)sizeof(double));
-      for (i15 = 0; i15 < br; i15++) {
-        for (i16 = 0; i16 < b_m; i16++) {
-          c_V->data[i16 + c_V->size[0] * i15] = V->data[i16 + V->size[0] * i15];
-        }
-      }
-
-      i15 = V->size[0] * V->size[1];
-      V->size[0] = c_V->size[0];
-      V->size[1] = c_V->size[1];
-      emxEnsureCapacity((emxArray__common *)V, i15, (int)sizeof(double));
-      br = c_V->size[1];
-      for (i15 = 0; i15 < br; i15++) {
-        nx = c_V->size[0];
-        for (i16 = 0; i16 < nx; i16++) {
-          V->data[i16 + V->size[0] * i15] = c_V->data[i16 + c_V->size[0] * i15];
-        }
-      }
-
-      /* Jan 7 */
-      if ((ky->size[1] == 1) || (V->size[0] == 1)) {
-        i15 = U->size[0] * U->size[1];
-        U->size[0] = ky->size[0];
-        U->size[1] = V->size[1];
-        emxEnsureCapacity((emxArray__common *)U, i15, (int)sizeof(double));
-        br = ky->size[0];
-        for (i15 = 0; i15 < br; i15++) {
-          nx = V->size[1];
-          for (i16 = 0; i16 < nx; i16++) {
-            U->data[i15 + U->size[0] * i16] = 0.0;
-            vstride = ky->size[1];
-            for (i17 = 0; i17 < vstride; i17++) {
-              U->data[i15 + U->size[0] * i16] += ky->data[i15 + ky->size[0] *
-                i17] * V->data[i17 + V->size[0] * i16];
-            }
-          }
-        }
-      } else {
-        k = ky->size[1];
-        vstride = ky->size[0];
-        nx = V->size[1];
-        i15 = U->size[0] * U->size[1];
-        U->size[0] = vstride;
-        U->size[1] = nx;
-        emxEnsureCapacity((emxArray__common *)U, i15, (int)sizeof(double));
-        m = ky->size[0];
-        i15 = U->size[0] * U->size[1];
-        emxEnsureCapacity((emxArray__common *)U, i15, (int)sizeof(double));
-        br = U->size[1];
-        for (i15 = 0; i15 < br; i15++) {
-          nx = U->size[0];
-          for (i16 = 0; i16 < nx; i16++) {
-            U->data[i16 + U->size[0] * i15] = 0.0;
-          }
-        }
-
-        if ((ky->size[0] == 0) || (V->size[1] == 0)) {
-        } else {
-          vstride = ky->size[0] * (V->size[1] - 1);
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            i15 = nx + m;
-            for (ic = nx; ic + 1 <= i15; ic++) {
-              U->data[ic] = 0.0;
-            }
-
-            nx += m;
-          }
-
-          br = 0;
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            ar = 0;
-            i15 = br + k;
-            for (ib = br; ib + 1 <= i15; ib++) {
-              if (V->data[ib] != 0.0) {
-                ia = ar;
-                i16 = nx + m;
-                for (ic = nx; ic + 1 <= i16; ic++) {
-                  ia++;
-                  U->data[ic] += V->data[ib] * ky->data[ia - 1];
-                }
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          ar = 0;
+          i8 = br + k;
+          for (ib = br; ib + 1 <= i8; ib++) {
+            if (V->data[ib] != 0.0) {
+              ia = ar;
+              i9 = nx + m;
+              for (ic = nx; ic + 1 <= i9; ic++) {
+                ia++;
+                U->data[ic] += V->data[ib] * ky->data[ia - 1];
               }
-
-              ar += m;
             }
 
-            br += k;
-            nx += m;
+            ar += m;
+          }
+
+          br += k;
+          nx += m;
+        }
+      }
+    }
+
+    i8 = s->size[0];
+    s->size[0] = loop_ub;
+    emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      s->data[i8] = dc->data[i8];
+    }
+
+    d_sqrt(s);
+
+    /* ky1 = bsxfun(@(x,c)x./c, U, s'); */
+    i8 = b_s->size[0] * b_s->size[1];
+    b_s->size[0] = 1;
+    b_s->size[1] = s->size[0];
+    emxEnsureCapacity((emxArray__common *)b_s, i8, (int)sizeof(double));
+    loop_ub = s->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      b_s->data[b_s->size[0] * i8] = s->data[i8];
+    }
+
+    repmat(b_s, (double)U->size[0], a);
+    rdivide(U, a, ky1);
+    b_diag(s, a);
+    i8 = b->size[0] * b->size[1];
+    b->size[0] = V->size[1];
+    b->size[1] = V->size[0];
+    emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
+    loop_ub = V->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      br = V->size[1];
+      for (i9 = 0; i9 < br; i9++) {
+        b->data[i9 + b->size[0] * i8] = V->data[i8 + V->size[0] * i9];
+      }
+    }
+
+    if ((a->size[1] == 1) || (b->size[0] == 1)) {
+      i8 = ky2->size[0] * ky2->size[1];
+      ky2->size[0] = a->size[0];
+      ky2->size[1] = b->size[1];
+      emxEnsureCapacity((emxArray__common *)ky2, i8, (int)sizeof(double));
+      loop_ub = a->size[0];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = b->size[1];
+        for (i9 = 0; i9 < br; i9++) {
+          ky2->data[i8 + ky2->size[0] * i9] = 0.0;
+          vstride = a->size[1];
+          for (k1 = 0; k1 < vstride; k1++) {
+            ky2->data[i8 + ky2->size[0] * i9] += a->data[i8 + a->size[0] * k1] *
+              b->data[k1 + b->size[0] * i9];
           }
         }
       }
-
-      /* Jan 7 */
-      i15 = s->size[0];
-      s->size[0] = loop_ub;
-      emxEnsureCapacity((emxArray__common *)s, i15, (int)sizeof(double));
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        s->data[i15] = dc->data[i15];
-      }
-
-      d_sqrt(s);
-
-      /* Jan 7 */
-      /* ky1 = bsxfun(@(x,c)x./c, U, s'); %Jan 7 */
-      i15 = b_s->size[0] * b_s->size[1];
-      b_s->size[0] = 1;
-      b_s->size[1] = s->size[0];
-      emxEnsureCapacity((emxArray__common *)b_s, i15, (int)sizeof(double));
-      loop_ub = s->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        b_s->data[b_s->size[0] * i15] = s->data[i15];
-      }
-
-      repmat(b_s, (double)U->size[0], a);
-      rdivide(U, a, ky1);
-
-      /* Jan 13 */
-      b_diag(s, a);
-      i15 = b->size[0] * b->size[1];
-      b->size[0] = V->size[1];
-      b->size[1] = V->size[0];
-      emxEnsureCapacity((emxArray__common *)b, i15, (int)sizeof(double));
-      loop_ub = V->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
-        br = V->size[1];
-        for (i16 = 0; i16 < br; i16++) {
-          b->data[i16 + b->size[0] * i15] = V->data[i15 + V->size[0] * i16];
+    } else {
+      k = a->size[1];
+      nx = a->size[0];
+      vstride = b->size[1];
+      i8 = ky2->size[0] * ky2->size[1];
+      ky2->size[0] = nx;
+      ky2->size[1] = vstride;
+      emxEnsureCapacity((emxArray__common *)ky2, i8, (int)sizeof(double));
+      m = a->size[0];
+      i8 = ky2->size[0] * ky2->size[1];
+      emxEnsureCapacity((emxArray__common *)ky2, i8, (int)sizeof(double));
+      loop_ub = ky2->size[1];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = ky2->size[0];
+        for (i9 = 0; i9 < br; i9++) {
+          ky2->data[i9 + ky2->size[0] * i8] = 0.0;
         }
       }
 
-      if ((a->size[1] == 1) || (b->size[0] == 1)) {
-        i15 = ky2->size[0] * ky2->size[1];
-        ky2->size[0] = a->size[0];
-        ky2->size[1] = b->size[1];
-        emxEnsureCapacity((emxArray__common *)ky2, i15, (int)sizeof(double));
-        loop_ub = a->size[0];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = b->size[1];
-          for (i16 = 0; i16 < br; i16++) {
-            ky2->data[i15 + ky2->size[0] * i16] = 0.0;
-            nx = a->size[1];
-            for (i17 = 0; i17 < nx; i17++) {
-              ky2->data[i15 + ky2->size[0] * i16] += a->data[i15 + a->size[0] *
-                i17] * b->data[i17 + b->size[0] * i16];
-            }
-          }
-        }
+      if ((a->size[0] == 0) || (b->size[1] == 0)) {
       } else {
-        k = a->size[1];
-        vstride = a->size[0];
-        nx = b->size[1];
-        i15 = ky2->size[0] * ky2->size[1];
-        ky2->size[0] = vstride;
-        ky2->size[1] = nx;
-        emxEnsureCapacity((emxArray__common *)ky2, i15, (int)sizeof(double));
-        m = a->size[0];
-        i15 = ky2->size[0] * ky2->size[1];
-        emxEnsureCapacity((emxArray__common *)ky2, i15, (int)sizeof(double));
-        loop_ub = ky2->size[1];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = ky2->size[0];
-          for (i16 = 0; i16 < br; i16++) {
-            ky2->data[i16 + ky2->size[0] * i15] = 0.0;
+        vstride = a->size[0] * (b->size[1] - 1);
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          i8 = nx + m;
+          for (ic = nx; ic + 1 <= i8; ic++) {
+            ky2->data[ic] = 0.0;
           }
+
+          nx += m;
         }
 
-        if ((a->size[0] == 0) || (b->size[1] == 0)) {
-        } else {
-          vstride = a->size[0] * (b->size[1] - 1);
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            i15 = nx + m;
-            for (ic = nx; ic + 1 <= i15; ic++) {
-              ky2->data[ic] = 0.0;
-            }
-
-            nx += m;
-          }
-
-          br = 0;
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            ar = 0;
-            i15 = br + k;
-            for (ib = br; ib + 1 <= i15; ib++) {
-              if (b->data[ib] != 0.0) {
-                ia = ar;
-                i16 = nx + m;
-                for (ic = nx; ic + 1 <= i16; ic++) {
-                  ia++;
-                  ky2->data[ic] += b->data[ib] * a->data[ia - 1];
-                }
+        br = 0;
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          ar = 0;
+          i8 = br + k;
+          for (ib = br; ib + 1 <= i8; ib++) {
+            if (b->data[ib] != 0.0) {
+              ia = ar;
+              i9 = nx + m;
+              for (ic = nx; ic + 1 <= i9; ic++) {
+                ia++;
+                ky2->data[ic] += b->data[ib] * a->data[ia - 1];
               }
-
-              ar += m;
             }
 
-            br += k;
-            nx += m;
+            ar += m;
           }
+
+          br += k;
+          nx += m;
         }
       }
+    }
 
-      /* Jan 7 */
-      if ((ky1->size[1] == 1) || (ky2->size[0] == 1)) {
-        i15 = ky->size[0] * ky->size[1];
-        ky->size[0] = ky1->size[0];
-        ky->size[1] = ky2->size[1];
-        emxEnsureCapacity((emxArray__common *)ky, i15, (int)sizeof(double));
-        loop_ub = ky1->size[0];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = ky2->size[1];
-          for (i16 = 0; i16 < br; i16++) {
-            ky->data[i15 + ky->size[0] * i16] = 0.0;
-            nx = ky1->size[1];
-            for (i17 = 0; i17 < nx; i17++) {
-              ky->data[i15 + ky->size[0] * i16] += ky1->data[i15 + ky1->size[0] *
-                i17] * ky2->data[i17 + ky2->size[0] * i16];
-            }
-          }
-        }
-      } else {
-        k = ky1->size[1];
-        vstride = ky1->size[0];
-        nx = ky2->size[1];
-        i15 = ky->size[0] * ky->size[1];
-        ky->size[0] = vstride;
-        ky->size[1] = nx;
-        emxEnsureCapacity((emxArray__common *)ky, i15, (int)sizeof(double));
-        m = ky1->size[0];
-        i15 = ky->size[0] * ky->size[1];
-        emxEnsureCapacity((emxArray__common *)ky, i15, (int)sizeof(double));
-        loop_ub = ky->size[1];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = ky->size[0];
-          for (i16 = 0; i16 < br; i16++) {
-            ky->data[i16 + ky->size[0] * i15] = 0.0;
-          }
-        }
-
-        if ((ky1->size[0] == 0) || (ky2->size[1] == 0)) {
-        } else {
-          vstride = ky1->size[0] * (ky2->size[1] - 1);
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            i15 = nx + m;
-            for (ic = nx; ic + 1 <= i15; ic++) {
-              ky->data[ic] = 0.0;
-            }
-
-            nx += m;
-          }
-
-          br = 0;
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            ar = 0;
-            i15 = br + k;
-            for (ib = br; ib + 1 <= i15; ib++) {
-              if (ky2->data[ib] != 0.0) {
-                ia = ar;
-                i16 = nx + m;
-                for (ic = nx; ic + 1 <= i16; ic++) {
-                  ia++;
-                  ky->data[ic] += ky2->data[ib] * ky1->data[ia - 1];
-                }
-              }
-
-              ar += m;
-            }
-
-            br += k;
-            nx += m;
-          }
-        }
-      }
-
-      /* clear U V; */
-      i15 = b->size[0] * b->size[1];
-      b->size[0] = ky2->size[1];
-      b->size[1] = ky2->size[0];
-      emxEnsureCapacity((emxArray__common *)b, i15, (int)sizeof(double));
-      loop_ub = ky2->size[0];
-      for (i15 = 0; i15 < loop_ub; i15++) {
+    if ((ky1->size[1] == 1) || (ky2->size[0] == 1)) {
+      i8 = ky->size[0] * ky->size[1];
+      ky->size[0] = ky1->size[0];
+      ky->size[1] = ky2->size[1];
+      emxEnsureCapacity((emxArray__common *)ky, i8, (int)sizeof(double));
+      loop_ub = ky1->size[0];
+      for (i8 = 0; i8 < loop_ub; i8++) {
         br = ky2->size[1];
-        for (i16 = 0; i16 < br; i16++) {
-          b->data[i16 + b->size[0] * i15] = ky2->data[i15 + ky2->size[0] * i16];
+        for (i9 = 0; i9 < br; i9++) {
+          ky->data[i8 + ky->size[0] * i9] = 0.0;
+          vstride = ky1->size[1];
+          for (k1 = 0; k1 < vstride; k1++) {
+            ky->data[i8 + ky->size[0] * i9] += ky1->data[i8 + ky1->size[0] * k1]
+              * ky2->data[k1 + ky2->size[0] * i9];
+          }
+        }
+      }
+    } else {
+      k = ky1->size[1];
+      nx = ky1->size[0];
+      vstride = ky2->size[1];
+      i8 = ky->size[0] * ky->size[1];
+      ky->size[0] = nx;
+      ky->size[1] = vstride;
+      emxEnsureCapacity((emxArray__common *)ky, i8, (int)sizeof(double));
+      m = ky1->size[0];
+      i8 = ky->size[0] * ky->size[1];
+      emxEnsureCapacity((emxArray__common *)ky, i8, (int)sizeof(double));
+      loop_ub = ky->size[1];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = ky->size[0];
+        for (i9 = 0; i9 < br; i9++) {
+          ky->data[i9 + ky->size[0] * i8] = 0.0;
         }
       }
 
-      if ((ky2->size[1] == 1) || (b->size[0] == 1)) {
-        i15 = DD->size[0] * DD->size[1];
-        DD->size[0] = ky2->size[0];
-        DD->size[1] = b->size[1];
-        emxEnsureCapacity((emxArray__common *)DD, i15, (int)sizeof(double));
-        loop_ub = ky2->size[0];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = b->size[1];
-          for (i16 = 0; i16 < br; i16++) {
-            DD->data[i15 + DD->size[0] * i16] = 0.0;
-            nx = ky2->size[1];
-            for (i17 = 0; i17 < nx; i17++) {
-              DD->data[i15 + DD->size[0] * i16] += ky2->data[i15 + ky2->size[0] *
-                i17] * b->data[i17 + b->size[0] * i16];
-            }
-          }
-        }
+      if ((ky1->size[0] == 0) || (ky2->size[1] == 0)) {
       } else {
-        k = ky2->size[1];
-        vstride = ky2->size[0];
-        nx = b->size[1];
-        i15 = DD->size[0] * DD->size[1];
-        DD->size[0] = vstride;
-        DD->size[1] = nx;
-        emxEnsureCapacity((emxArray__common *)DD, i15, (int)sizeof(double));
-        m = ky2->size[0];
-        i15 = DD->size[0] * DD->size[1];
-        emxEnsureCapacity((emxArray__common *)DD, i15, (int)sizeof(double));
-        loop_ub = DD->size[1];
-        for (i15 = 0; i15 < loop_ub; i15++) {
-          br = DD->size[0];
-          for (i16 = 0; i16 < br; i16++) {
-            DD->data[i16 + DD->size[0] * i15] = 0.0;
+        vstride = ky1->size[0] * (ky2->size[1] - 1);
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          i8 = nx + m;
+          for (ic = nx; ic + 1 <= i8; ic++) {
+            ky->data[ic] = 0.0;
           }
+
+          nx += m;
         }
 
-        if ((ky2->size[0] == 0) || (b->size[1] == 0)) {
-        } else {
-          vstride = ky2->size[0] * (b->size[1] - 1);
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            i15 = nx + m;
-            for (ic = nx; ic + 1 <= i15; ic++) {
-              DD->data[ic] = 0.0;
+        br = 0;
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          ar = 0;
+          i8 = br + k;
+          for (ib = br; ib + 1 <= i8; ib++) {
+            if (ky2->data[ib] != 0.0) {
+              ia = ar;
+              i9 = nx + m;
+              for (ic = nx; ic + 1 <= i9; ic++) {
+                ia++;
+                ky->data[ic] += ky2->data[ib] * ky1->data[ia - 1];
+              }
             }
 
-            nx += m;
+            ar += m;
           }
 
-          br = 0;
-          nx = 0;
-          while ((m > 0) && (nx <= vstride)) {
-            ar = 0;
-            i15 = br + k;
-            for (ib = br; ib + 1 <= i15; ib++) {
-              if (b->data[ib] != 0.0) {
-                ia = ar;
-                i16 = nx + m;
-                for (ic = nx; ic + 1 <= i16; ic++) {
-                  ia++;
-                  DD->data[ic] += b->data[ib] * ky2->data[ia - 1];
-                }
-              }
+          br += k;
+          nx += m;
+        }
+      }
+    }
 
-              ar += m;
-            }
+    /* clear U V; */
+    i8 = b->size[0] * b->size[1];
+    b->size[0] = ky2->size[1];
+    b->size[1] = ky2->size[0];
+    emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
+    loop_ub = ky2->size[0];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      br = ky2->size[1];
+      for (i9 = 0; i9 < br; i9++) {
+        b->data[i9 + b->size[0] * i8] = ky2->data[i8 + ky2->size[0] * i9];
+      }
+    }
 
-            br += k;
-            nx += m;
+    if ((ky2->size[1] == 1) || (b->size[0] == 1)) {
+      i8 = DD->size[0] * DD->size[1];
+      DD->size[0] = ky2->size[0];
+      DD->size[1] = b->size[1];
+      emxEnsureCapacity((emxArray__common *)DD, i8, (int)sizeof(double));
+      loop_ub = ky2->size[0];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = b->size[1];
+        for (i9 = 0; i9 < br; i9++) {
+          DD->data[i8 + DD->size[0] * i9] = 0.0;
+          vstride = ky2->size[1];
+          for (k1 = 0; k1 < vstride; k1++) {
+            DD->data[i8 + DD->size[0] * i9] += ky2->data[i8 + ky2->size[0] * k1]
+              * b->data[k1 + b->size[0] * i9];
           }
         }
       }
+    } else {
+      k = ky2->size[1];
+      nx = ky2->size[0];
+      vstride = b->size[1];
+      i8 = DD->size[0] * DD->size[1];
+      DD->size[0] = nx;
+      DD->size[1] = vstride;
+      emxEnsureCapacity((emxArray__common *)DD, i8, (int)sizeof(double));
+      m = ky2->size[0];
+      i8 = DD->size[0] * DD->size[1];
+      emxEnsureCapacity((emxArray__common *)DD, i8, (int)sizeof(double));
+      loop_ub = DD->size[1];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = DD->size[0];
+        for (i9 = 0; i9 < br; i9++) {
+          DD->data[i9 + DD->size[0] * i8] = 0.0;
+        }
+      }
 
-      /* U = []; V = []; C = []; %%% latest changes by XIA */
+      if ((ky2->size[0] == 0) || (b->size[1] == 0)) {
+      } else {
+        vstride = ky2->size[0] * (b->size[1] - 1);
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          i8 = nx + m;
+          for (ic = nx; ic + 1 <= i8; ic++) {
+            DD->data[ic] = 0.0;
+          }
+
+          nx += m;
+        }
+
+        br = 0;
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          ar = 0;
+          i8 = br + k;
+          for (ib = br; ib + 1 <= i8; ib++) {
+            if (b->data[ib] != 0.0) {
+              ia = ar;
+              i9 = nx + m;
+              for (ic = nx; ic + 1 <= i9; ic++) {
+                ia++;
+                DD->data[ic] += b->data[ib] * ky2->data[ia - 1];
+              }
+            }
+
+            ar += m;
+          }
+
+          br += k;
+          nx += m;
+        }
+      }
     }
-  }
-
-  if (guard2) {
-    i15 = ky->size[0] * ky->size[1];
-    ky->size[0] = y->size[0];
-    ky->size[1] = y->size[1];
-    emxEnsureCapacity((emxArray__common *)ky, i15, (int)sizeof(double));
-    loop_ub = y->size[0] * y->size[1];
-    for (i15 = 0; i15 < loop_ub; i15++) {
-      ky->data[i15] = y->data[i15];
-    }
-
-    i15 = ky1->size[0] * ky1->size[1];
-    ky1->size[0] = y->size[0];
-    ky1->size[1] = y->size[1];
-    emxEnsureCapacity((emxArray__common *)ky1, i15, (int)sizeof(double));
-    loop_ub = y->size[0] * y->size[1];
-    for (i15 = 0; i15 < loop_ub; i15++) {
-      ky1->data[i15] = y->data[i15];
-    }
-
-    /* %% latest changes by XIA */
-    i15 = ky2->size[0] * ky2->size[1];
-    ky2->size[0] = 1;
-    ky2->size[1] = 1;
-    emxEnsureCapacity((emxArray__common *)ky2, i15, (int)sizeof(double));
-    ky2->data[0] = 1.0;
-
-    /* %% latest changes by XIA */
-    i15 = DD->size[0] * DD->size[1];
-    DD->size[0] = 1;
-    DD->size[1] = 1;
-    emxEnsureCapacity((emxArray__common *)DD, i15, (int)sizeof(double));
-    DD->data[0] = 1.0;
-
-    /* %% latest changes by XIA */
   }
 
   emxFree_real_T(&c_V);
   emxFree_real_T(&b_V);
   emxFree_real_T(&b_ky);
   emxFree_real_T(&c_qx);
-  emxFree_boolean_T(&c_ss);
+  emxFree_boolean_T(&c_yi);
   emxFree_real_T(&b_Dc);
   emxFree_real_T(&b_s);
   emxFree_int32_T(&ii);
   emxFree_boolean_T(&c_x);
   emxFree_real_T(&b_qx);
-  emxInit_real_T2(&BB, 3);
-  i15 = BB->size[0] * BB->size[1] * BB->size[2];
-  BB->size[0] = p;
-  BB->size[1] = p;
-  BB->size[2] = p;
-  emxEnsureCapacity((emxArray__common *)BB, i15, (int)sizeof(double));
-  loop_ub = p * p * p;
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    BB->data[i15] = 0.0;
-  }
-
-  emxInit_real_T(&r1, 2);
-  eye((double)p, r1);
-  loop_ub = r1->size[1];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    br = r1->size[0];
-    for (i16 = 0; i16 < br; i16++) {
-      BB->data[(i16 + BB->size[0] * i15) + BB->size[0] * BB->size[1] * (p - 1)] =
-        r1->data[i16 + r1->size[0] * i15];
+  if (p == 0) {
+    i8 = BB1D->size[0];
+    BB1D->size[0] = 1;
+    emxEnsureCapacity((emxArray__common *)BB1D, i8, (int)sizeof(double));
+    BB1D->data[0] = 1.0;
+  } else {
+    emxInit_real_T2(&BB, 3);
+    i8 = BB->size[0] * BB->size[1] * BB->size[2];
+    BB->size[0] = p;
+    BB->size[1] = p;
+    BB->size[2] = p;
+    emxEnsureCapacity((emxArray__common *)BB, i8, (int)sizeof(double));
+    loop_ub = p * p * p;
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      BB->data[i8] = 0.0;
     }
-  }
 
-  emxFree_real_T(&r1);
-  emxInit_real_T(&onexi, 2);
-  i15 = onexi->size[0] * onexi->size[1];
-  onexi->size[0] = n;
-  onexi->size[1] = p + 1;
-  emxEnsureCapacity((emxArray__common *)onexi, i15, (int)sizeof(double));
-  loop_ub = n * (p + 1);
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    onexi->data[i15] = 1.0;
-  }
-
-  emxInit_real_T(&B, 2);
-  eye((double)p, B);
-  i15 = ss->size[0] * ss->size[1];
-  ss->size[0] = p;
-  ss->size[1] = p;
-  emxEnsureCapacity((emxArray__common *)ss, i15, (int)sizeof(double));
-  loop_ub = p * p;
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    ss->data[i15] = 0.0;
-  }
-
-  /* Jan 13 */
-  if (p > 1) {
-    i15 = (int)((1.0 + (-1.0 - (double)p)) / -1.0);
-    ip = 0;
-    emxInit_real_T(&D, 2);
-    emxInit_real_T(&Ifast, 2);
-    emxInit_real_T(&Vfast, 2);
-    emxInit_real_T(&xfast, 2);
-    emxInit_real_T(&xij, 2);
-    emxInit_real_T1(&dxij, 1);
-    emxInit_real_T(&abi, 2);
-    emxInit_real_T(&dd, 2);
-    emxInit_real_T(&kxijy, 2);
-    emxInit_real_T(&ddx, 2);
-    emxInit_real_T(&tmp, 2);
-    emxInit_real_T1(&b_B, 1);
-    emxInit_creal_T(&R, 1);
-    emxInit_real_T(&b_C, 2);
-    emxInit_real_T(&c_C, 2);
-    emxInit_real_T(&d_C, 2);
-    emxInit_real_T1(&e_C, 1);
-    emxInit_int32_T1(&r2, 2);
-    emxInit_real_T(&b_y, 2);
-    emxInit_real_T(&c_y, 2);
-    emxInit_real_T(&d_y, 2);
-    emxInitMatrix_cell_wrap_0(reshapes);
-    emxInit_real_T(&e_y, 2);
-    emxInit_real_T(&f_y, 2);
-    emxInit_real_T(&g_y, 2);
-    emxInit_real_T(&h_y, 2);
-    emxInit_real_T(&b_dd, 2);
-    emxInit_real_T(&b_abi, 2);
-    emxInit_real_T(&f_C, 2);
-    emxInit_real_T(&d_V, 2);
-    emxInit_real_T(&b_Vfast, 2);
-    emxInit_real_T(&b_xfast, 2);
-    emxInit_real_T(&g_C, 2);
-    emxInit_real_T1(&e_V, 1);
-    emxInit_real_T(&c_B, 2);
-    emxInit_int32_T1(&b_Ifast, 2);
-    emxInit_int32_T1(&c_Ifast, 2);
-    emxInit_real_T1(&b_dc, 1);
-    emxInit_real_T(&c_abi, 2);
-    emxInit_int32_T1(&d_Ifast, 2);
-    emxInit_int32_T1(&e_Ifast, 2);
-    exitg1 = false;
-    while ((!exitg1) && (ip <= i15 - 1)) {
-      b_ip = p - ip;
-      b_m = (int)std::floor((double)n / 2.0);
-      if (b_ip <= b_m) {
-        m = b_ip;
-      } else {
-        m = b_m;
+    emxInit_real_T(&r0, 2);
+    eye((double)p, r0);
+    loop_ub = r0->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      br = r0->size[0];
+      for (i9 = 0; i9 < br; i9++) {
+        BB->data[(i9 + BB->size[0] * i8) + BB->size[0] * BB->size[1] * (p - 1)] =
+          r0->data[i9 + r0->size[0] * i8];
       }
+    }
 
-      K = ((b_ip <= 10) * 5 + ((b_ip <= 20) * (b_ip > 10) << 1)) + (b_ip > 20);
-      if (d_strcmp(method)) {
-        K = 1;
-      }
+    emxFree_real_T(&r0);
+    emxInit_real_T(&onexi, 2);
+    i8 = onexi->size[0] * onexi->size[1];
+    onexi->size[0] = n;
+    onexi->size[1] = p + 1;
+    emxEnsureCapacity((emxArray__common *)onexi, i8, (int)sizeof(double));
+    loop_ub = n * (p + 1);
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      onexi->data[i8] = 1.0;
+    }
 
-      for (iter = 0; iter < K; iter++) {
-        /* Jan 13 Change for C */
-        if (d_strcmp(method)) {
-          i16 = V->size[0] * V->size[1];
-          V->size[0] = y->size[0];
-          V->size[1] = y->size[1];
-          emxEnsureCapacity((emxArray__common *)V, i16, (int)sizeof(double));
-          loop_ub = y->size[0] * y->size[1];
-          for (i16 = 0; i16 < loop_ub; i16++) {
-            V->data[i16] = y->data[i16];
-          }
+    emxInit_real_T(&B, 2);
+    eye((double)p, B);
+    i8 = yi->size[0] * yi->size[1];
+    yi->size[0] = p;
+    yi->size[1] = p;
+    emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
+    loop_ub = p * p;
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      yi->data[i8] = 0.0;
+    }
 
-          m = 1;
-        } else if ((x->size[1] == 1) || (B->size[0] == 1)) {
-          i16 = V->size[0] * V->size[1];
-          V->size[0] = x->size[0];
-          V->size[1] = B->size[1];
-          emxEnsureCapacity((emxArray__common *)V, i16, (int)sizeof(double));
-          loop_ub = x->size[0];
-          for (i16 = 0; i16 < loop_ub; i16++) {
-            br = B->size[1];
-            for (i17 = 0; i17 < br; i17++) {
-              V->data[i16 + V->size[0] * i17] = 0.0;
-              nx = x->size[1];
-              for (b_m = 0; b_m < nx; b_m++) {
-                V->data[i16 + V->size[0] * i17] += x->data[i16 + x->size[0] *
-                  b_m] * B->data[b_m + B->size[0] * i17];
-              }
-            }
-          }
+    if (p > 1) {
+      iter = 0;
+      emxInit_real_T(&D, 2);
+      emxInit_real_T(&Ifast, 2);
+      emxInit_real_T(&xfast, 2);
+      emxInit_real_T(&xij, 2);
+      emxInit_real_T1(&dxij, 1);
+      emxInit_real_T(&abi, 2);
+      emxInit_real_T(&dd, 2);
+      emxInit_real_T(&kxijy, 2);
+      emxInit_real_T(&ddx, 2);
+      emxInit_real_T(&tmp, 2);
+      emxInit_real_T(&B0, 2);
+      emxInit_real_T1(&d_B, 1);
+      emxInit_creal_T(&R, 1);
+      emxInit_real_T(&b_C, 2);
+      emxInit_real_T(&c_C, 2);
+      emxInit_real_T(&d_C, 2);
+      emxInit_real_T1(&e_C, 1);
+      emxInit_int32_T(&r1, 2);
+      emxInit_real_T(&b_y, 2);
+      emxInit_real_T(&c_y, 2);
+      emxInit_real_T(&d_y, 2);
+      emxInitMatrix_cell_wrap_0(reshapes);
+      emxInit_real_T(&e_y, 2);
+      emxInit_real_T(&f_y, 2);
+      emxInit_real_T(&g_y, 2);
+      emxInit_real_T(&b_dd, 2);
+      emxInit_real_T(&b_abi, 2);
+      emxInit_real_T(&f_C, 2);
+      emxInit_real_T(&d_V, 2);
+      emxInit_real_T(&b_U, 2);
+      emxInit_real_T(&b_xfast, 2);
+      emxInit_real_T(&g_C, 2);
+      emxInit_real_T1(&e_V, 1);
+      emxInit_real_T(&e_B, 2);
+      emxInit_int32_T(&b_Ifast, 2);
+      emxInit_int32_T(&c_Ifast, 2);
+      emxInit_real_T1(&b_dc, 1);
+      emxInit_real_T(&c_abi, 2);
+      emxInit_int32_T(&d_Ifast, 2);
+      emxInit_int32_T(&e_Ifast, 2);
+      exitg1 = false;
+      while ((!exitg1) && (iter <= which_dim->size[1] - 1)) {
+        ip = which_dim->data[iter];
+        nm1d2 = (int)std::floor((double)n / 2.0);
+        if (which_dim->data[iter] <= nm1d2) {
+          b_m = which_dim->data[iter];
         } else {
-          k = x->size[1];
-          vstride = x->size[0];
-          nx = B->size[1];
-          i16 = V->size[0] * V->size[1];
-          V->size[0] = vstride;
-          V->size[1] = nx;
-          emxEnsureCapacity((emxArray__common *)V, i16, (int)sizeof(double));
-          b_m = x->size[0];
-          i16 = V->size[0] * V->size[1];
-          emxEnsureCapacity((emxArray__common *)V, i16, (int)sizeof(double));
-          loop_ub = V->size[1];
-          for (i16 = 0; i16 < loop_ub; i16++) {
-            br = V->size[0];
-            for (i17 = 0; i17 < br; i17++) {
-              V->data[i17 + V->size[0] * i16] = 0.0;
+          b_m = nm1d2;
+        }
+
+        K = ((which_dim->data[iter] <= 10.0) * 5 + ((which_dim->data[iter] <=
+               20.0) * (which_dim->data[iter] > 10.0) << 1)) + (which_dim->
+          data[iter] > 20.0);
+        if (d_strcmp(method)) {
+          K = 1;
+        }
+
+        if (1.0 > which_dim->data[iter]) {
+          loop_ub = 0;
+        } else {
+          loop_ub = (int)which_dim->data[iter];
+        }
+
+        vstride = B->size[0];
+        i8 = e_B->size[0] * e_B->size[1];
+        e_B->size[0] = vstride;
+        e_B->size[1] = loop_ub;
+        emxEnsureCapacity((emxArray__common *)e_B, i8, (int)sizeof(double));
+        for (i8 = 0; i8 < loop_ub; i8++) {
+          for (i9 = 0; i9 < vstride; i9++) {
+            e_B->data[i9 + e_B->size[0] * i8] = B->data[i9 + B->size[0] * i8];
+          }
+        }
+
+        i8 = B->size[0] * B->size[1];
+        B->size[0] = e_B->size[0];
+        B->size[1] = e_B->size[1];
+        emxEnsureCapacity((emxArray__common *)B, i8, (int)sizeof(double));
+        loop_ub = e_B->size[1];
+        for (i8 = 0; i8 < loop_ub; i8++) {
+          br = e_B->size[0];
+          for (i9 = 0; i9 < br; i9++) {
+            B->data[i9 + B->size[0] * i8] = e_B->data[i9 + e_B->size[0] * i8];
+          }
+        }
+
+        for (b_iter = 0; b_iter < K; b_iter++) {
+          if (d_strcmp(method)) {
+            i8 = V->size[0] * V->size[1];
+            V->size[0] = y->size[0];
+            V->size[1] = y->size[1];
+            emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
+            loop_ub = y->size[0] * y->size[1];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              V->data[i8] = y->data[i8];
+            }
+
+            b_m = 1.0;
+          } else if ((x->size[1] == 1) || (B->size[0] == 1)) {
+            i8 = V->size[0] * V->size[1];
+            V->size[0] = x->size[0];
+            V->size[1] = B->size[1];
+            emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
+            loop_ub = x->size[0];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              br = B->size[1];
+              for (i9 = 0; i9 < br; i9++) {
+                V->data[i8 + V->size[0] * i9] = 0.0;
+                vstride = x->size[1];
+                for (k1 = 0; k1 < vstride; k1++) {
+                  V->data[i8 + V->size[0] * i9] += x->data[i8 + x->size[0] * k1]
+                    * B->data[k1 + B->size[0] * i9];
+                }
+              }
+            }
+          } else {
+            k = x->size[1];
+            nx = x->size[0];
+            vstride = B->size[1];
+            i8 = V->size[0] * V->size[1];
+            V->size[0] = nx;
+            V->size[1] = vstride;
+            emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
+            m = x->size[0];
+            i8 = V->size[0] * V->size[1];
+            emxEnsureCapacity((emxArray__common *)V, i8, (int)sizeof(double));
+            loop_ub = V->size[1];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              br = V->size[0];
+              for (i9 = 0; i9 < br; i9++) {
+                V->data[i9 + V->size[0] * i8] = 0.0;
+              }
+            }
+
+            if ((x->size[0] == 0) || (B->size[1] == 0)) {
+            } else {
+              vstride = x->size[0] * (B->size[1] - 1);
+              nx = 0;
+              while ((m > 0) && (nx <= vstride)) {
+                i8 = nx + m;
+                for (ic = nx; ic + 1 <= i8; ic++) {
+                  V->data[ic] = 0.0;
+                }
+
+                nx += m;
+              }
+
+              br = 0;
+              nx = 0;
+              while ((m > 0) && (nx <= vstride)) {
+                ar = 0;
+                i8 = br + k;
+                for (ib = br; ib + 1 <= i8; ib++) {
+                  if (B->data[ib] != 0.0) {
+                    ia = ar;
+                    i9 = nx + m;
+                    for (ic = nx; ic + 1 <= i9; ic++) {
+                      ia++;
+                      V->data[ic] += B->data[ib] * x->data[ia - 1];
+                    }
+                  }
+
+                  ar += m;
+                }
+
+                br += k;
+                nx += m;
+              }
             }
           }
 
-          if ((x->size[0] == 0) || (B->size[1] == 0)) {
+          if (100 <= n) {
+            nm1d2 = 100;
           } else {
-            vstride = x->size[0] * (B->size[1] - 1);
-            nx = 0;
-            while ((b_m > 0) && (nx <= vstride)) {
-              i16 = nx + b_m;
-              for (ic = nx; ic + 1 <= i16; ic++) {
-                V->data[ic] = 0.0;
-              }
+            nm1d2 = n;
+          }
 
-              nx += b_m;
+          pp = std::floor(std::sqrt((double)n));
+          if ((nm1d2 >= pp) || rtIsNaN(pp)) {
+            b_nm1d2 = nm1d2;
+          } else {
+            b_nm1d2 = pp;
+          }
+
+          unifD(V, b_nm1d2, Ifast);
+          i8 = b_Ifast->size[0] * b_Ifast->size[1];
+          b_Ifast->size[0] = Ifast->size[0];
+          b_Ifast->size[1] = Ifast->size[1];
+          emxEnsureCapacity((emxArray__common *)b_Ifast, i8, (int)sizeof(int));
+          loop_ub = Ifast->size[1];
+          for (i8 = 0; i8 < loop_ub; i8++) {
+            br = Ifast->size[0];
+            for (i9 = 0; i9 < br; i9++) {
+              b_Ifast->data[i9 + b_Ifast->size[0] * i8] = (int)Ifast->data[i9 +
+                Ifast->size[0] * i8];
+            }
+          }
+
+          Ifast_idx_0 = Ifast->size[0] * Ifast->size[1];
+          loop_ub = V->size[1];
+          i8 = U->size[0] * U->size[1];
+          U->size[0] = Ifast_idx_0;
+          U->size[1] = loop_ub;
+          emxEnsureCapacity((emxArray__common *)U, i8, (int)sizeof(double));
+          for (i8 = 0; i8 < loop_ub; i8++) {
+            for (i9 = 0; i9 < Ifast_idx_0; i9++) {
+              U->data[i9 + U->size[0] * i8] = V->data[(b_Ifast->data[i9] +
+                V->size[0] * i8) - 1];
+            }
+          }
+
+          i8 = c_Ifast->size[0] * c_Ifast->size[1];
+          c_Ifast->size[0] = Ifast->size[0];
+          c_Ifast->size[1] = Ifast->size[1];
+          emxEnsureCapacity((emxArray__common *)c_Ifast, i8, (int)sizeof(int));
+          loop_ub = Ifast->size[1];
+          for (i8 = 0; i8 < loop_ub; i8++) {
+            br = Ifast->size[0];
+            for (i9 = 0; i9 < br; i9++) {
+              c_Ifast->data[i9 + c_Ifast->size[0] * i8] = (int)Ifast->data[i9 +
+                Ifast->size[0] * i8];
+            }
+          }
+
+          Ifast_idx_0 = Ifast->size[0] * Ifast->size[1];
+          loop_ub = x->size[1];
+          i8 = xfast->size[0] * xfast->size[1];
+          xfast->size[0] = Ifast_idx_0;
+          xfast->size[1] = loop_ub;
+          emxEnsureCapacity((emxArray__common *)xfast, i8, (int)sizeof(double));
+          for (i8 = 0; i8 < loop_ub; i8++) {
+            for (i9 = 0; i9 < Ifast_idx_0; i9++) {
+              xfast->data[i9 + xfast->size[0] * i8] = x->data[(c_Ifast->data[i9]
+                + x->size[0] * i8) - 1];
+            }
+          }
+
+          Ifast_idx_0 = Ifast->size[0] * Ifast->size[1];
+          b_std(V, qx);
+          pp = 1.2 * c_mean(qx);
+          pp /= rt_powd_snf((double)n, 1.0 / (b_m + 4.0));
+          h2 = 2.0 * pp * pp;
+          if (e_strcmp(method) || d_strcmp(method) || c_strcmp(method) || (ip >
+               5.0)) {
+            i8 = yi->size[0] * yi->size[1];
+            yi->size[0] = p;
+            yi->size[1] = p;
+            emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
+            loop_ub = p * p;
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              yi->data[i8] = 0.0;
             }
 
-            br = 0;
-            nx = 0;
-            while ((b_m > 0) && (nx <= vstride)) {
-              ar = 0;
-              i16 = br + k;
-              for (ib = br; ib + 1 <= i16; ib++) {
-                if (B->data[ib] != 0.0) {
-                  ia = ar;
-                  i17 = nx + b_m;
-                  for (ic = nx; ic + 1 <= i17; ic++) {
-                    ia++;
-                    V->data[ic] += B->data[ib] * x->data[ia - 1];
+            for (j = 0; j < Ifast_idx_0; j++) {
+              i8 = xij->size[0] * xij->size[1];
+              xij->size[0] = n;
+              xij->size[1] = p;
+              emxEnsureCapacity((emxArray__common *)xij, i8, (int)sizeof(double));
+              for (nx = 0; nx < p; nx++) {
+                loop_ub = x->size[0] - 1;
+                i8 = e_Ifast->size[0] * e_Ifast->size[1];
+                e_Ifast->size[0] = Ifast->size[0];
+                e_Ifast->size[1] = Ifast->size[1];
+                emxEnsureCapacity((emxArray__common *)e_Ifast, i8, (int)sizeof
+                                  (int));
+                br = Ifast->size[1];
+                for (i8 = 0; i8 < br; i8++) {
+                  vstride = Ifast->size[0];
+                  for (i9 = 0; i9 < vstride; i9++) {
+                    e_Ifast->data[i9 + e_Ifast->size[0] * i8] = (int)Ifast->
+                      data[i9 + Ifast->size[0] * i8];
                   }
                 }
 
-                ar += b_m;
+                pp = x->data[(e_Ifast->data[j] + x->size[0] * nx) - 1];
+                for (i8 = 0; i8 <= loop_ub; i8++) {
+                  xij->data[i8 + xij->size[0] * nx] = x->data[i8 + x->size[0] *
+                    nx] - pp;
+                }
               }
 
-              br += k;
-              nx += b_m;
-            }
-          }
-        }
-
-        if (100 <= n) {
-          b_m = 100;
-        } else {
-          b_m = n;
-        }
-
-        pp = std::floor(std::sqrt((double)n));
-
-        /*  Jan 13 */
-        if ((b_m >= pp) || rtIsNaN(pp)) {
-          c_m = b_m;
-        } else {
-          c_m = pp;
-        }
-
-        unifD(V, c_m, Ifast);
-
-        /*  Jan 13 */
-        i16 = b_Ifast->size[0] * b_Ifast->size[1];
-        b_Ifast->size[0] = Ifast->size[0];
-        b_Ifast->size[1] = Ifast->size[1];
-        emxEnsureCapacity((emxArray__common *)b_Ifast, i16, (int)sizeof(int));
-        loop_ub = Ifast->size[1];
-        for (i16 = 0; i16 < loop_ub; i16++) {
-          br = Ifast->size[0];
-          for (i17 = 0; i17 < br; i17++) {
-            b_Ifast->data[i17 + b_Ifast->size[0] * i16] = (int)Ifast->data[i17 +
-              Ifast->size[0] * i16];
-          }
-        }
-
-        Ifast_idx_0 = Ifast->size[0] * Ifast->size[1];
-        loop_ub = V->size[1];
-        i16 = Vfast->size[0] * Vfast->size[1];
-        Vfast->size[0] = Ifast_idx_0;
-        Vfast->size[1] = loop_ub;
-        emxEnsureCapacity((emxArray__common *)Vfast, i16, (int)sizeof(double));
-        for (i16 = 0; i16 < loop_ub; i16++) {
-          for (i17 = 0; i17 < Ifast_idx_0; i17++) {
-            Vfast->data[i17 + Vfast->size[0] * i16] = V->data[(b_Ifast->data[i17]
-              + V->size[0] * i16) - 1];
-          }
-        }
-
-        /*  Jan 13 */
-        i16 = c_Ifast->size[0] * c_Ifast->size[1];
-        c_Ifast->size[0] = Ifast->size[0];
-        c_Ifast->size[1] = Ifast->size[1];
-        emxEnsureCapacity((emxArray__common *)c_Ifast, i16, (int)sizeof(int));
-        loop_ub = Ifast->size[1];
-        for (i16 = 0; i16 < loop_ub; i16++) {
-          br = Ifast->size[0];
-          for (i17 = 0; i17 < br; i17++) {
-            c_Ifast->data[i17 + c_Ifast->size[0] * i16] = (int)Ifast->data[i17 +
-              Ifast->size[0] * i16];
-          }
-        }
-
-        Ifast_idx_0 = Ifast->size[0] * Ifast->size[1];
-        loop_ub = x->size[1];
-        i16 = xfast->size[0] * xfast->size[1];
-        xfast->size[0] = Ifast_idx_0;
-        xfast->size[1] = loop_ub;
-        emxEnsureCapacity((emxArray__common *)xfast, i16, (int)sizeof(double));
-        for (i16 = 0; i16 < loop_ub; i16++) {
-          for (i17 = 0; i17 < Ifast_idx_0; i17++) {
-            xfast->data[i17 + xfast->size[0] * i16] = x->data[(c_Ifast->data[i17]
-              + x->size[0] * i16) - 1];
-          }
-        }
-
-        /*  Jan 13 */
-        Ifast_idx_0 = Ifast->size[0] * Ifast->size[1];
-
-        /*  Jan 13 */
-        b_std(V, qx);
-        pp = 1.2 * mean(qx);
-        pp /= rt_powd_snf((double)n, 1.0 / ((double)m + 4.0));
-        h2 = 2.0 * pp * pp;
-        guard1 = false;
-        if (e_strcmp(method)) {
-          guard1 = true;
-        } else {
-          empty_non_axis_sizes = d_strcmp(method);
-          b0 = c_strcmp(method);
-          if (empty_non_axis_sizes || b0 || (b_ip > 5)) {
-            guard1 = true;
-          } else {
-            i16 = dd->size[0] * dd->size[1];
-            dd->size[0] = (int)((double)m * (double)p);
-            dd->size[1] = (int)((double)m * (double)p);
-            emxEnsureCapacity((emxArray__common *)dd, i16, (int)sizeof(double));
-            loop_ub = (int)((double)m * (double)p) * (int)((double)m * (double)p);
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              dd->data[i16] = 0.0;
-            }
-
-            i16 = dc->size[0];
-            dc->size[0] = (int)((double)m * (double)p);
-            emxEnsureCapacity((emxArray__common *)dc, i16, (int)sizeof(double));
-            loop_ub = (int)((double)m * (double)p);
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              dc->data[i16] = 0.0;
-            }
-
-            i16 = D->size[0] * D->size[1];
-            D->size[0] = m;
-            D->size[1] = m;
-            emxEnsureCapacity((emxArray__common *)D, i16, (int)sizeof(double));
-            loop_ub = m * m;
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              D->data[i16] = 0.0;
-            }
-
-            /* Jan 13 Change for C */
-            for (j = 0; j < Ifast_idx_0; j++) {
-              loop_ub = x->size[1];
-              i16 = b_xfast->size[0] * b_xfast->size[1];
-              b_xfast->size[0] = 1;
-              b_xfast->size[1] = loop_ub;
-              emxEnsureCapacity((emxArray__common *)b_xfast, i16, (int)sizeof
-                                (double));
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                b_xfast->data[b_xfast->size[0] * i16] = xfast->data[j +
-                  xfast->size[0] * i16];
+              i8 = dxij->size[0];
+              dxij->size[0] = n;
+              emxEnsureCapacity((emxArray__common *)dxij, i8, (int)sizeof(double));
+              for (i8 = 0; i8 < n; i8++) {
+                dxij->data[i8] = 0.0;
               }
 
-              repmat(b_xfast, (double)n, xij);
-              i16 = xij->size[0] * xij->size[1];
-              xij->size[0] = x->size[0];
-              xij->size[1] = x->size[1];
-              emxEnsureCapacity((emxArray__common *)xij, i16, (int)sizeof(double));
-              loop_ub = x->size[0] * x->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                xij->data[i16] = x->data[i16] - xij->data[i16];
+              for (nx = 0; nx < (int)b_m; nx++) {
+                loop_ub = V->size[0];
+                i8 = d_Ifast->size[0] * d_Ifast->size[1];
+                d_Ifast->size[0] = Ifast->size[0];
+                d_Ifast->size[1] = Ifast->size[1];
+                emxEnsureCapacity((emxArray__common *)d_Ifast, i8, (int)sizeof
+                                  (int));
+                br = Ifast->size[1];
+                for (i8 = 0; i8 < br; i8++) {
+                  vstride = Ifast->size[0];
+                  for (i9 = 0; i9 < vstride; i9++) {
+                    d_Ifast->data[i9 + d_Ifast->size[0] * i8] = (int)Ifast->
+                      data[i9 + Ifast->size[0] * i8];
+                  }
+                }
+
+                pp = V->data[(d_Ifast->data[j] + V->size[0] * nx) - 1];
+                i8 = e_V->size[0];
+                e_V->size[0] = loop_ub;
+                emxEnsureCapacity((emxArray__common *)e_V, i8, (int)sizeof
+                                  (double));
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  e_V->data[i8] = V->data[i8 + V->size[0] * nx] - pp;
+                }
+
+                b_power(e_V, s);
+                i8 = dxij->size[0];
+                emxEnsureCapacity((emxArray__common *)dxij, i8, (int)sizeof
+                                  (double));
+                loop_ub = dxij->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  dxij->data[i8] += s->data[i8];
+                }
               }
 
-              /*  NEW changes */
-              loop_ub = V->size[1];
-              i16 = b_Vfast->size[0] * b_Vfast->size[1];
-              b_Vfast->size[0] = 1;
-              b_Vfast->size[1] = loop_ub;
-              emxEnsureCapacity((emxArray__common *)b_Vfast, i16, (int)sizeof
-                                (double));
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                b_Vfast->data[b_Vfast->size[0] * i16] = Vfast->data[j +
-                  Vfast->size[0] * i16];
-              }
-
-              repmat(b_Vfast, (double)n, a);
-              i16 = d_V->size[0] * d_V->size[1];
-              d_V->size[0] = V->size[0];
-              d_V->size[1] = V->size[1];
-              emxEnsureCapacity((emxArray__common *)d_V, i16, (int)sizeof(double));
-              loop_ub = V->size[0] * V->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                d_V->data[i16] = V->data[i16] - a->data[i16];
-              }
-
-              power(d_V, a);
-              sum(a, dxij);
-
-              /*  NEW changes */
-              i16 = s->size[0];
+              i8 = s->size[0];
               s->size[0] = dxij->size[0];
-              emxEnsureCapacity((emxArray__common *)s, i16, (int)sizeof(double));
+              emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
               loop_ub = dxij->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                s->data[i16] = dxij->data[i16];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                s->data[i8] = dxij->data[i8];
               }
 
               f_sort(s);
-              if ((h2 >= s->data[(int)(2.0 * (double)m) - 1]) || rtIsNaN(s->
-                   data[(int)(2.0 * (double)m) - 1])) {
+              if ((h2 >= s->data[(int)(2.0 * b_m) - 1]) || rtIsNaN(s->data[(int)
+                   (2.0 * b_m) - 1])) {
                 pp = h2;
               } else {
-                pp = s->data[(int)(2.0 * (double)m) - 1];
+                pp = s->data[(int)(2.0 * b_m) - 1];
               }
 
-              i16 = dxij->size[0];
-              emxEnsureCapacity((emxArray__common *)dxij, i16, (int)sizeof
-                                (double));
+              i8 = dxij->size[0];
+              emxEnsureCapacity((emxArray__common *)dxij, i8, (int)sizeof(double));
               loop_ub = dxij->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                dxij->data[i16] = -dxij->data[i16] / pp;
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                dxij->data[i8] = -dxij->data[i8] / pp;
               }
 
               b_exp(dxij);
-              b_repmat(dxij, (double)p + 1.0, C);
+              loop_ub = xij->size[1];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                br = xij->size[0];
+                for (i9 = 0; i9 < br; i9++) {
+                  onexi->data[i9 + onexi->size[0] * i8] = xij->data[i9 +
+                    xij->size[0] * i8];
+                }
+              }
+
+              c_repmat(dxij, (double)p + 1.0, a);
+              i8 = C->size[0] * C->size[1];
+              C->size[0] = onexi->size[1];
+              C->size[1] = onexi->size[0];
+              emxEnsureCapacity((emxArray__common *)C, i8, (int)sizeof(double));
+              loop_ub = onexi->size[0];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                br = onexi->size[1];
+                for (i9 = 0; i9 < br; i9++) {
+                  C->data[i9 + C->size[0] * i8] = onexi->data[i8 + onexi->size[0]
+                    * i9] * a->data[i8 + a->size[0] * i9];
+                }
+              }
+
+              /* abi = inv(xk*onexi+eye(p+1)/n)*(xk*ky1); */
+              if ((C->size[1] == 1) || (onexi->size[0] == 1)) {
+                i8 = b_C->size[0] * b_C->size[1];
+                b_C->size[0] = C->size[0];
+                b_C->size[1] = onexi->size[1];
+                emxEnsureCapacity((emxArray__common *)b_C, i8, (int)sizeof
+                                  (double));
+                loop_ub = C->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  br = onexi->size[1];
+                  for (i9 = 0; i9 < br; i9++) {
+                    b_C->data[i8 + b_C->size[0] * i9] = 0.0;
+                    vstride = C->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      b_C->data[i8 + b_C->size[0] * i9] += C->data[i8 + C->size
+                        [0] * k1] * onexi->data[k1 + onexi->size[0] * i9];
+                    }
+                  }
+                }
+              } else {
+                k = C->size[1];
+                nx = C->size[0];
+                vstride = onexi->size[1];
+                i8 = b_C->size[0] * b_C->size[1];
+                b_C->size[0] = nx;
+                b_C->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)b_C, i8, (int)sizeof
+                                  (double));
+                m = C->size[0];
+                i8 = b_C->size[0] * b_C->size[1];
+                emxEnsureCapacity((emxArray__common *)b_C, i8, (int)sizeof
+                                  (double));
+                loop_ub = b_C->size[1];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  br = b_C->size[0];
+                  for (i9 = 0; i9 < br; i9++) {
+                    b_C->data[i9 + b_C->size[0] * i8] = 0.0;
+                  }
+                }
+
+                if ((C->size[0] == 0) || (onexi->size[1] == 0)) {
+                } else {
+                  vstride = C->size[0] * (onexi->size[1] - 1);
+                  nx = 0;
+                  while ((m > 0) && (nx <= vstride)) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
+                      b_C->data[ic] = 0.0;
+                    }
+
+                    nx += m;
+                  }
+
+                  br = 0;
+                  nx = 0;
+                  while ((m > 0) && (nx <= vstride)) {
+                    ar = 0;
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
+                      if (onexi->data[ib] != 0.0) {
+                        ia = ar;
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
+                          ia++;
+                          b_C->data[ic] += onexi->data[ib] * C->data[ia - 1];
+                        }
+                      }
+
+                      ar += m;
+                    }
+
+                    br += k;
+                    nx += m;
+                  }
+                }
+              }
+
+              eye((double)p + 1.0, a);
+              if ((C->size[1] == 1) || (ky1->size[0] == 1)) {
+                i8 = f_y->size[0] * f_y->size[1];
+                f_y->size[0] = C->size[0];
+                f_y->size[1] = ky1->size[1];
+                emxEnsureCapacity((emxArray__common *)f_y, i8, (int)sizeof
+                                  (double));
+                loop_ub = C->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  br = ky1->size[1];
+                  for (i9 = 0; i9 < br; i9++) {
+                    f_y->data[i8 + f_y->size[0] * i9] = 0.0;
+                    vstride = C->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      f_y->data[i8 + f_y->size[0] * i9] += C->data[i8 + C->size
+                        [0] * k1] * ky1->data[k1 + ky1->size[0] * i9];
+                    }
+                  }
+                }
+              } else {
+                k = C->size[1];
+                nx = C->size[0];
+                vstride = ky1->size[1];
+                i8 = f_y->size[0] * f_y->size[1];
+                f_y->size[0] = nx;
+                f_y->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)f_y, i8, (int)sizeof
+                                  (double));
+                m = C->size[0];
+                i8 = f_y->size[0] * f_y->size[1];
+                emxEnsureCapacity((emxArray__common *)f_y, i8, (int)sizeof
+                                  (double));
+                loop_ub = f_y->size[1];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  br = f_y->size[0];
+                  for (i9 = 0; i9 < br; i9++) {
+                    f_y->data[i9 + f_y->size[0] * i8] = 0.0;
+                  }
+                }
+
+                if ((C->size[0] == 0) || (ky1->size[1] == 0)) {
+                } else {
+                  vstride = C->size[0] * (ky1->size[1] - 1);
+                  nx = 0;
+                  while ((m > 0) && (nx <= vstride)) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
+                      f_y->data[ic] = 0.0;
+                    }
+
+                    nx += m;
+                  }
+
+                  br = 0;
+                  nx = 0;
+                  while ((m > 0) && (nx <= vstride)) {
+                    ar = 0;
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
+                      if (ky1->data[ib] != 0.0) {
+                        ia = ar;
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
+                          ia++;
+                          f_y->data[ic] += ky1->data[ib] * C->data[ia - 1];
+                        }
+                      }
+
+                      ar += m;
+                    }
+
+                    br += k;
+                    nx += m;
+                  }
+                }
+              }
+
+              i8 = g_C->size[0] * g_C->size[1];
+              g_C->size[0] = b_C->size[0];
+              g_C->size[1] = b_C->size[1];
+              emxEnsureCapacity((emxArray__common *)g_C, i8, (int)sizeof(double));
+              loop_ub = b_C->size[0] * b_C->size[1];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                g_C->data[i8] = b_C->data[i8] + a->data[i8] / (double)n;
+              }
+
+              mldivide(g_C, f_y, abi);
+              i8 = abi->size[1];
+              if ((i8 == 1) || (DD->size[0] == 1)) {
+                loop_ub = abi->size[1];
+                i8 = c_abi->size[0] * c_abi->size[1];
+                c_abi->size[0] = p;
+                c_abi->size[1] = loop_ub;
+                emxEnsureCapacity((emxArray__common *)c_abi, i8, (int)sizeof
+                                  (double));
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  for (i9 = 0; i9 < p; i9++) {
+                    c_abi->data[i9 + c_abi->size[0] * i8] = abi->data[i9 +
+                      abi->size[0] * i8];
+                  }
+                }
+
+                i8 = g_y->size[0] * g_y->size[1];
+                g_y->size[0] = c_abi->size[0];
+                g_y->size[1] = DD->size[1];
+                emxEnsureCapacity((emxArray__common *)g_y, i8, (int)sizeof
+                                  (double));
+                loop_ub = c_abi->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  br = DD->size[1];
+                  for (i9 = 0; i9 < br; i9++) {
+                    g_y->data[i8 + g_y->size[0] * i9] = 0.0;
+                    vstride = c_abi->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      g_y->data[i8 + g_y->size[0] * i9] += c_abi->data[i8 +
+                        c_abi->size[0] * k1] * DD->data[k1 + DD->size[0] * i9];
+                    }
+                  }
+                }
+              } else {
+                i8 = abi->size[1];
+                vstride = DD->size[1];
+                i9 = g_y->size[0] * g_y->size[1];
+                g_y->size[0] = p;
+                g_y->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)g_y, i9, (int)sizeof
+                                  (double));
+                i9 = g_y->size[0] * g_y->size[1];
+                emxEnsureCapacity((emxArray__common *)g_y, i9, (int)sizeof
+                                  (double));
+                loop_ub = g_y->size[1];
+                for (i9 = 0; i9 < loop_ub; i9++) {
+                  br = g_y->size[0];
+                  for (k1 = 0; k1 < br; k1++) {
+                    g_y->data[k1 + g_y->size[0] * i9] = 0.0;
+                  }
+                }
+
+                if (DD->size[1] != 0) {
+                  vstride = p * (DD->size[1] - 1);
+                  for (nx = 0; nx <= vstride; nx += p) {
+                    i9 = nx + p;
+                    for (ic = nx; ic + 1 <= i9; ic++) {
+                      g_y->data[ic] = 0.0;
+                    }
+                  }
+
+                  br = 0;
+                  for (nx = 0; nx <= vstride; nx += p) {
+                    ar = 0;
+                    i9 = br + i8;
+                    for (ib = br; ib + 1 <= i9; ib++) {
+                      if (DD->data[ib] != 0.0) {
+                        ia = ar;
+                        k1 = nx + p;
+                        for (ic = nx; ic + 1 <= k1; ic++) {
+                          ia++;
+                          g_y->data[ic] += DD->data[ib] * abi->data[(ia - 1) % p
+                            + abi->size[0] * ((ia - 1) / p)];
+                        }
+                      }
+
+                      ar += p;
+                    }
+
+                    br += i8;
+                  }
+                }
+              }
+
+              loop_ub = abi->size[1];
+              i8 = b->size[0] * b->size[1];
+              b->size[0] = loop_ub;
+              b->size[1] = p;
+              emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
+              for (i8 = 0; i8 < p; i8++) {
+                for (i9 = 0; i9 < loop_ub; i9++) {
+                  b->data[i9 + b->size[0] * i8] = abi->data[i8 + abi->size[0] *
+                    i9];
+                }
+              }
+
+              if ((g_y->size[1] == 1) || (b->size[0] == 1)) {
+                i8 = c_C->size[0] * c_C->size[1];
+                c_C->size[0] = g_y->size[0];
+                c_C->size[1] = b->size[1];
+                emxEnsureCapacity((emxArray__common *)c_C, i8, (int)sizeof
+                                  (double));
+                loop_ub = g_y->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  br = b->size[1];
+                  for (i9 = 0; i9 < br; i9++) {
+                    c_C->data[i8 + c_C->size[0] * i9] = 0.0;
+                    vstride = g_y->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      c_C->data[i8 + c_C->size[0] * i9] += g_y->data[i8 +
+                        g_y->size[0] * k1] * b->data[k1 + b->size[0] * i9];
+                    }
+                  }
+                }
+              } else {
+                k = g_y->size[1];
+                nx = g_y->size[0];
+                vstride = b->size[1];
+                i8 = c_C->size[0] * c_C->size[1];
+                c_C->size[0] = nx;
+                c_C->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)c_C, i8, (int)sizeof
+                                  (double));
+                m = g_y->size[0];
+                i8 = c_C->size[0] * c_C->size[1];
+                emxEnsureCapacity((emxArray__common *)c_C, i8, (int)sizeof
+                                  (double));
+                loop_ub = c_C->size[1];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  br = c_C->size[0];
+                  for (i9 = 0; i9 < br; i9++) {
+                    c_C->data[i9 + c_C->size[0] * i8] = 0.0;
+                  }
+                }
+
+                vstride = g_y->size[0] * (b->size[1] - 1);
+                for (nx = 0; nx <= vstride; nx += m) {
+                  i8 = nx + m;
+                  for (ic = nx; ic + 1 <= i8; ic++) {
+                    c_C->data[ic] = 0.0;
+                  }
+                }
+
+                br = 0;
+                for (nx = 0; nx <= vstride; nx += m) {
+                  ar = 0;
+                  i8 = br + k;
+                  for (ib = br; ib + 1 <= i8; ib++) {
+                    if (b->data[ib] != 0.0) {
+                      ia = ar;
+                      i9 = nx + m;
+                      for (ic = nx; ic + 1 <= i9; ic++) {
+                        ia++;
+                        c_C->data[ic] += b->data[ib] * g_y->data[ia - 1];
+                      }
+                    }
+
+                    ar += m;
+                  }
+
+                  br += k;
+                }
+              }
+
+              i8 = yi->size[0] * yi->size[1];
+              emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
+              nm1d2 = yi->size[0];
+              vstride = yi->size[1];
+              loop_ub = nm1d2 * vstride;
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                yi->data[i8] += c_C->data[i8];
+              }
+            }
+
+            eig(yi, Vc, Dc);
+            i8 = B->size[0] * B->size[1];
+            B->size[0] = Vc->size[0];
+            B->size[1] = Vc->size[1];
+            emxEnsureCapacity((emxArray__common *)B, i8, (int)sizeof(double));
+            loop_ub = Vc->size[0] * Vc->size[1];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              B->data[i8] = Vc->data[i8].re;
+            }
+
+            /* Change for C */
+            c_diag(Dc, R);
+            i8 = s->size[0];
+            s->size[0] = R->size[0];
+            emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+            loop_ub = R->size[0];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              s->data[i8] = R->data[i8].re;
+            }
+
+            c_sort(s, iidx);
+            i8 = s->size[0];
+            s->size[0] = iidx->size[0];
+            emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+            loop_ub = iidx->size[0];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              s->data[i8] = iidx->data[i8];
+            }
+
+            loop_ub = B->size[0];
+            i8 = yi->size[0] * yi->size[1];
+            yi->size[0] = loop_ub;
+            yi->size[1] = iidx->size[0];
+            emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
+            br = iidx->size[0];
+            for (i8 = 0; i8 < br; i8++) {
+              for (i9 = 0; i9 < loop_ub; i9++) {
+                yi->data[i9 + yi->size[0] * i8] = B->data[i9 + B->size[0] *
+                  (iidx->data[i8] - 1)];
+              }
+            }
+
+            if (1.0 > ip) {
+              loop_ub = 0;
+            } else {
+              loop_ub = (int)ip;
+            }
+
+            br = B->size[0];
+            i8 = B->size[0] * B->size[1];
+            B->size[0] = br;
+            B->size[1] = loop_ub;
+            emxEnsureCapacity((emxArray__common *)B, i8, (int)sizeof(double));
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              for (i9 = 0; i9 < br; i9++) {
+                B->data[i9 + B->size[0] * i8] = yi->data[i9 + yi->size[0] * i8];
+              }
+            }
+          } else {
+            i8 = dd->size[0] * dd->size[1];
+            dd->size[0] = (int)(b_m * (double)p);
+            dd->size[1] = (int)(b_m * (double)p);
+            emxEnsureCapacity((emxArray__common *)dd, i8, (int)sizeof(double));
+            loop_ub = (int)(b_m * (double)p) * (int)(b_m * (double)p);
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              dd->data[i8] = 0.0;
+            }
+
+            i8 = dc->size[0];
+            dc->size[0] = (int)(b_m * (double)p);
+            emxEnsureCapacity((emxArray__common *)dc, i8, (int)sizeof(double));
+            loop_ub = (int)(b_m * (double)p);
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              dc->data[i8] = 0.0;
+            }
+
+            i8 = D->size[0] * D->size[1];
+            D->size[0] = (int)b_m;
+            D->size[1] = (int)b_m;
+            emxEnsureCapacity((emxArray__common *)D, i8, (int)sizeof(double));
+            loop_ub = (int)b_m * (int)b_m;
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              D->data[i8] = 0.0;
+            }
+
+            /* Change for C */
+            for (j = 0; j < Ifast_idx_0; j++) {
+              loop_ub = x->size[1];
+              i8 = b_xfast->size[0] * b_xfast->size[1];
+              b_xfast->size[0] = 1;
+              b_xfast->size[1] = loop_ub;
+              emxEnsureCapacity((emxArray__common *)b_xfast, i8, (int)sizeof
+                                (double));
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                b_xfast->data[b_xfast->size[0] * i8] = xfast->data[j +
+                  xfast->size[0] * i8];
+              }
+
+              repmat(b_xfast, (double)n, xij);
+              i8 = xij->size[0] * xij->size[1];
+              xij->size[0] = x->size[0];
+              xij->size[1] = x->size[1];
+              emxEnsureCapacity((emxArray__common *)xij, i8, (int)sizeof(double));
+              loop_ub = x->size[0] * x->size[1];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                xij->data[i8] = x->data[i8] - xij->data[i8];
+              }
+
+              loop_ub = V->size[1];
+              i8 = b_U->size[0] * b_U->size[1];
+              b_U->size[0] = 1;
+              b_U->size[1] = loop_ub;
+              emxEnsureCapacity((emxArray__common *)b_U, i8, (int)sizeof(double));
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                b_U->data[b_U->size[0] * i8] = U->data[j + U->size[0] * i8];
+              }
+
+              repmat(b_U, (double)n, a);
+              i8 = d_V->size[0] * d_V->size[1];
+              d_V->size[0] = V->size[0];
+              d_V->size[1] = V->size[1];
+              emxEnsureCapacity((emxArray__common *)d_V, i8, (int)sizeof(double));
+              loop_ub = V->size[0] * V->size[1];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                d_V->data[i8] = V->data[i8] - a->data[i8];
+              }
+
+              power(d_V, a);
+              b_sum(a, dxij);
+              i8 = s->size[0];
+              s->size[0] = dxij->size[0];
+              emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+              loop_ub = dxij->size[0];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                s->data[i8] = dxij->data[i8];
+              }
+
+              f_sort(s);
+              if ((h2 >= s->data[(int)(2.0 * b_m) - 1]) || rtIsNaN(s->data[(int)
+                   (2.0 * b_m) - 1])) {
+                pp = h2;
+              } else {
+                pp = s->data[(int)(2.0 * b_m) - 1];
+              }
+
+              i8 = dxij->size[0];
+              emxEnsureCapacity((emxArray__common *)dxij, i8, (int)sizeof(double));
+              loop_ub = dxij->size[0];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                dxij->data[i8] = -dxij->data[i8] / pp;
+              }
+
+              b_exp(dxij);
+              c_repmat(dxij, (double)p + 1.0, yj);
               if ((xij->size[1] == 1) || (B->size[0] == 1)) {
-                i16 = d_y->size[0] * d_y->size[1];
+                i8 = d_y->size[0] * d_y->size[1];
                 d_y->size[0] = xij->size[0];
                 d_y->size[1] = B->size[1];
-                emxEnsureCapacity((emxArray__common *)d_y, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)d_y, i8, (int)sizeof
                                   (double));
                 loop_ub = xij->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = B->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    d_y->data[i16 + d_y->size[0] * i17] = 0.0;
-                    nx = xij->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      d_y->data[i16 + d_y->size[0] * i17] += xij->data[i16 +
-                        xij->size[0] * b_m] * B->data[b_m + B->size[0] * i17];
+                  for (i9 = 0; i9 < br; i9++) {
+                    d_y->data[i8 + d_y->size[0] * i9] = 0.0;
+                    vstride = xij->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      d_y->data[i8 + d_y->size[0] * i9] += xij->data[i8 +
+                        xij->size[0] * k1] * B->data[k1 + B->size[0] * i9];
                     }
                   }
                 }
               } else {
                 k = xij->size[1];
-                vstride = xij->size[0];
-                nx = B->size[1];
-                i16 = d_y->size[0] * d_y->size[1];
-                d_y->size[0] = vstride;
-                d_y->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)d_y, i16, (int)sizeof
+                nx = xij->size[0];
+                vstride = B->size[1];
+                i8 = d_y->size[0] * d_y->size[1];
+                d_y->size[0] = nx;
+                d_y->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)d_y, i8, (int)sizeof
                                   (double));
-                b_m = xij->size[0];
-                i16 = d_y->size[0] * d_y->size[1];
-                emxEnsureCapacity((emxArray__common *)d_y, i16, (int)sizeof
+                m = xij->size[0];
+                i8 = d_y->size[0] * d_y->size[1];
+                emxEnsureCapacity((emxArray__common *)d_y, i8, (int)sizeof
                                   (double));
                 loop_ub = d_y->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = d_y->size[0];
-                  for (i17 = 0; i17 < br; i17++) {
-                    d_y->data[i17 + d_y->size[0] * i16] = 0.0;
+                  for (i9 = 0; i9 < br; i9++) {
+                    d_y->data[i9 + d_y->size[0] * i8] = 0.0;
                   }
                 }
 
@@ -2311,35 +2871,35 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                 } else {
                   vstride = xij->size[0] * (B->size[1] - 1);
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
-                    i16 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i16; ic++) {
+                  while ((m > 0) && (nx <= vstride)) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
                       d_y->data[ic] = 0.0;
                     }
 
-                    nx += b_m;
+                    nx += m;
                   }
 
                   br = 0;
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
+                  while ((m > 0) && (nx <= vstride)) {
                     ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
                       if (B->data[ib] != 0.0) {
                         ia = ar;
-                        i17 = nx + b_m;
-                        for (ic = nx; ic + 1 <= i17; ic++) {
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
                           ia++;
                           d_y->data[ic] += B->data[ib] * xij->data[ia - 1];
                         }
                       }
 
-                      ar += b_m;
+                      ar += m;
                     }
 
                     br += k;
-                    nx += b_m;
+                    nx += m;
                   }
                 }
               }
@@ -2358,9 +2918,9 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
               empty_non_axis_sizes = (nx == 0);
               if (empty_non_axis_sizes || (!((d_y->size[0] == 0) || (d_y->size[1]
                      == 0)))) {
-                b_m = d_y->size[1];
+                nm1d2 = d_y->size[1];
               } else {
-                b_m = 0;
+                nm1d2 = 0;
               }
 
               if (empty_non_axis_sizes || (!(n == 0))) {
@@ -2369,465 +2929,386 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                 vstride = 0;
               }
 
-              i16 = reshapes[1].f1->size[0] * reshapes[1].f1->size[1];
+              i8 = reshapes[1].f1->size[0] * reshapes[1].f1->size[1];
               reshapes[1].f1->size[0] = nx;
               reshapes[1].f1->size[1] = vstride;
-              emxEnsureCapacity((emxArray__common *)reshapes[1].f1, i16, (int)
+              emxEnsureCapacity((emxArray__common *)reshapes[1].f1, i8, (int)
                                 sizeof(double));
               loop_ub = nx * vstride;
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                reshapes[1].f1->data[i16] = 1.0;
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                reshapes[1].f1->data[i8] = 1.0;
               }
 
-              i16 = onexi->size[0] * onexi->size[1];
+              i8 = onexi->size[0] * onexi->size[1];
               onexi->size[0] = nx;
-              onexi->size[1] = b_m + reshapes[1].f1->size[1];
-              emxEnsureCapacity((emxArray__common *)onexi, i16, (int)sizeof
+              onexi->size[1] = nm1d2 + reshapes[1].f1->size[1];
+              emxEnsureCapacity((emxArray__common *)onexi, i8, (int)sizeof
                                 (double));
-              for (i16 = 0; i16 < b_m; i16++) {
-                for (i17 = 0; i17 < nx; i17++) {
-                  onexi->data[i17 + onexi->size[0] * i16] = d_y->data[i17 + nx *
-                    i16];
+              for (i8 = 0; i8 < nm1d2; i8++) {
+                for (i9 = 0; i9 < nx; i9++) {
+                  onexi->data[i9 + onexi->size[0] * i8] = d_y->data[i9 + nx * i8];
                 }
               }
 
               loop_ub = reshapes[1].f1->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
+              for (i8 = 0; i8 < loop_ub; i8++) {
                 br = reshapes[1].f1->size[0];
-                for (i17 = 0; i17 < br; i17++) {
-                  onexi->data[i17 + onexi->size[0] * (i16 + b_m)] = reshapes[1].
-                    f1->data[i17 + reshapes[1].f1->size[0] * i16];
+                for (i9 = 0; i9 < br; i9++) {
+                  onexi->data[i9 + onexi->size[0] * (i8 + nm1d2)] = reshapes[1].
+                    f1->data[i9 + reshapes[1].f1->size[0] * i8];
                 }
               }
 
-              i16 = U->size[0] * U->size[1];
-              U->size[0] = onexi->size[1];
-              U->size[1] = onexi->size[0];
-              emxEnsureCapacity((emxArray__common *)U, i16, (int)sizeof(double));
+              i8 = C->size[0] * C->size[1];
+              C->size[0] = onexi->size[1];
+              C->size[1] = onexi->size[0];
+              emxEnsureCapacity((emxArray__common *)C, i8, (int)sizeof(double));
               loop_ub = onexi->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
+              for (i8 = 0; i8 < loop_ub; i8++) {
                 br = onexi->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  U->data[i17 + U->size[0] * i16] = onexi->data[i16 +
-                    onexi->size[0] * i17] * C->data[i16 + C->size[0] * i17];
+                for (i9 = 0; i9 < br; i9++) {
+                  C->data[i9 + C->size[0] * i8] = onexi->data[i8 + onexi->size[0]
+                    * i9] * yj->data[i8 + yj->size[0] * i9];
                 }
               }
 
-              if ((U->size[1] == 1) || (onexi->size[0] == 1)) {
-                i16 = d_C->size[0] * d_C->size[1];
-                d_C->size[0] = U->size[0];
+              /* abi = inv(xk*onexi+eye(size(B,2)+1)/n)*(xk*ky1)*ky2; */
+              if ((C->size[1] == 1) || (onexi->size[0] == 1)) {
+                i8 = d_C->size[0] * d_C->size[1];
+                d_C->size[0] = C->size[0];
                 d_C->size[1] = onexi->size[1];
-                emxEnsureCapacity((emxArray__common *)d_C, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)d_C, i8, (int)sizeof
                                   (double));
-                loop_ub = U->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                loop_ub = C->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = onexi->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    d_C->data[i16 + d_C->size[0] * i17] = 0.0;
-                    nx = U->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      d_C->data[i16 + d_C->size[0] * i17] += U->data[i16 +
-                        U->size[0] * b_m] * onexi->data[b_m + onexi->size[0] *
-                        i17];
+                  for (i9 = 0; i9 < br; i9++) {
+                    d_C->data[i8 + d_C->size[0] * i9] = 0.0;
+                    vstride = C->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      d_C->data[i8 + d_C->size[0] * i9] += C->data[i8 + C->size
+                        [0] * k1] * onexi->data[k1 + onexi->size[0] * i9];
                     }
                   }
                 }
               } else {
-                k = U->size[1];
-                vstride = U->size[0];
-                nx = onexi->size[1];
-                i16 = d_C->size[0] * d_C->size[1];
-                d_C->size[0] = vstride;
-                d_C->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)d_C, i16, (int)sizeof
+                k = C->size[1];
+                nx = C->size[0];
+                vstride = onexi->size[1];
+                i8 = d_C->size[0] * d_C->size[1];
+                d_C->size[0] = nx;
+                d_C->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)d_C, i8, (int)sizeof
                                   (double));
-                b_m = U->size[0];
-                i16 = d_C->size[0] * d_C->size[1];
-                emxEnsureCapacity((emxArray__common *)d_C, i16, (int)sizeof
+                m = C->size[0];
+                i8 = d_C->size[0] * d_C->size[1];
+                emxEnsureCapacity((emxArray__common *)d_C, i8, (int)sizeof
                                   (double));
                 loop_ub = d_C->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = d_C->size[0];
-                  for (i17 = 0; i17 < br; i17++) {
-                    d_C->data[i17 + d_C->size[0] * i16] = 0.0;
+                  for (i9 = 0; i9 < br; i9++) {
+                    d_C->data[i9 + d_C->size[0] * i8] = 0.0;
                   }
                 }
 
-                if ((U->size[0] == 0) || (onexi->size[1] == 0)) {
+                if ((C->size[0] == 0) || (onexi->size[1] == 0)) {
                 } else {
-                  vstride = U->size[0] * (onexi->size[1] - 1);
+                  vstride = C->size[0] * (onexi->size[1] - 1);
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
-                    i16 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i16; ic++) {
+                  while ((m > 0) && (nx <= vstride)) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
                       d_C->data[ic] = 0.0;
                     }
 
-                    nx += b_m;
+                    nx += m;
                   }
 
                   br = 0;
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
+                  while ((m > 0) && (nx <= vstride)) {
                     ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
                       if (onexi->data[ib] != 0.0) {
                         ia = ar;
-                        i17 = nx + b_m;
-                        for (ic = nx; ic + 1 <= i17; ic++) {
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
                           ia++;
-                          d_C->data[ic] += onexi->data[ib] * U->data[ia - 1];
+                          d_C->data[ic] += onexi->data[ib] * C->data[ia - 1];
                         }
                       }
 
-                      ar += b_m;
+                      ar += m;
                     }
 
                     br += k;
-                    nx += b_m;
+                    nx += m;
                   }
                 }
               }
 
               eye((double)B->size[1] + 1.0, a);
-              i16 = f_C->size[0] * f_C->size[1];
-              f_C->size[0] = d_C->size[0];
-              f_C->size[1] = d_C->size[1];
-              emxEnsureCapacity((emxArray__common *)f_C, i16, (int)sizeof(double));
-              loop_ub = d_C->size[0] * d_C->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                f_C->data[i16] = d_C->data[i16] + a->data[i16] / (double)n;
-              }
-
-              inv(f_C, ss);
-              if ((U->size[1] == 1) || (ky1->size[0] == 1)) {
-                i16 = e_y->size[0] * e_y->size[1];
-                e_y->size[0] = U->size[0];
+              if ((C->size[1] == 1) || (ky1->size[0] == 1)) {
+                i8 = e_y->size[0] * e_y->size[1];
+                e_y->size[0] = C->size[0];
                 e_y->size[1] = ky1->size[1];
-                emxEnsureCapacity((emxArray__common *)e_y, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)e_y, i8, (int)sizeof
                                   (double));
-                loop_ub = U->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                loop_ub = C->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = ky1->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    e_y->data[i16 + e_y->size[0] * i17] = 0.0;
-                    nx = U->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      e_y->data[i16 + e_y->size[0] * i17] += U->data[i16 +
-                        U->size[0] * b_m] * ky1->data[b_m + ky1->size[0] * i17];
+                  for (i9 = 0; i9 < br; i9++) {
+                    e_y->data[i8 + e_y->size[0] * i9] = 0.0;
+                    vstride = C->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      e_y->data[i8 + e_y->size[0] * i9] += C->data[i8 + C->size
+                        [0] * k1] * ky1->data[k1 + ky1->size[0] * i9];
                     }
                   }
                 }
               } else {
-                k = U->size[1];
-                vstride = U->size[0];
-                nx = ky1->size[1];
-                i16 = e_y->size[0] * e_y->size[1];
-                e_y->size[0] = vstride;
-                e_y->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)e_y, i16, (int)sizeof
+                k = C->size[1];
+                nx = C->size[0];
+                vstride = ky1->size[1];
+                i8 = e_y->size[0] * e_y->size[1];
+                e_y->size[0] = nx;
+                e_y->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)e_y, i8, (int)sizeof
                                   (double));
-                b_m = U->size[0];
-                i16 = e_y->size[0] * e_y->size[1];
-                emxEnsureCapacity((emxArray__common *)e_y, i16, (int)sizeof
+                m = C->size[0];
+                i8 = e_y->size[0] * e_y->size[1];
+                emxEnsureCapacity((emxArray__common *)e_y, i8, (int)sizeof
                                   (double));
                 loop_ub = e_y->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = e_y->size[0];
-                  for (i17 = 0; i17 < br; i17++) {
-                    e_y->data[i17 + e_y->size[0] * i16] = 0.0;
+                  for (i9 = 0; i9 < br; i9++) {
+                    e_y->data[i9 + e_y->size[0] * i8] = 0.0;
                   }
                 }
 
-                if ((U->size[0] == 0) || (ky1->size[1] == 0)) {
+                if ((C->size[0] == 0) || (ky1->size[1] == 0)) {
                 } else {
-                  vstride = U->size[0] * (ky1->size[1] - 1);
+                  vstride = C->size[0] * (ky1->size[1] - 1);
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
-                    i16 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i16; ic++) {
+                  while ((m > 0) && (nx <= vstride)) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
                       e_y->data[ic] = 0.0;
                     }
 
-                    nx += b_m;
+                    nx += m;
                   }
 
                   br = 0;
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
+                  while ((m > 0) && (nx <= vstride)) {
                     ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
                       if (ky1->data[ib] != 0.0) {
                         ia = ar;
-                        i17 = nx + b_m;
-                        for (ic = nx; ic + 1 <= i17; ic++) {
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
                           ia++;
-                          e_y->data[ic] += ky1->data[ib] * U->data[ia - 1];
+                          e_y->data[ic] += ky1->data[ib] * C->data[ia - 1];
                         }
                       }
 
-                      ar += b_m;
+                      ar += m;
                     }
 
                     br += k;
-                    nx += b_m;
+                    nx += m;
                   }
                 }
               }
 
-              if ((ss->size[1] == 1) || (e_y->size[0] == 1)) {
-                i16 = f_y->size[0] * f_y->size[1];
-                f_y->size[0] = ss->size[0];
-                f_y->size[1] = e_y->size[1];
-                emxEnsureCapacity((emxArray__common *)f_y, i16, (int)sizeof
-                                  (double));
-                loop_ub = ss->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
-                  br = e_y->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    f_y->data[i16 + f_y->size[0] * i17] = 0.0;
-                    nx = ss->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      f_y->data[i16 + f_y->size[0] * i17] += ss->data[i16 +
-                        ss->size[0] * b_m] * e_y->data[b_m + e_y->size[0] * i17];
-                    }
-                  }
-                }
-              } else {
-                k = ss->size[1];
-                vstride = ss->size[0];
-                nx = e_y->size[1];
-                i16 = f_y->size[0] * f_y->size[1];
-                f_y->size[0] = vstride;
-                f_y->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)f_y, i16, (int)sizeof
-                                  (double));
-                b_m = ss->size[0];
-                i16 = f_y->size[0] * f_y->size[1];
-                emxEnsureCapacity((emxArray__common *)f_y, i16, (int)sizeof
-                                  (double));
-                loop_ub = f_y->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
-                  br = f_y->size[0];
-                  for (i17 = 0; i17 < br; i17++) {
-                    f_y->data[i17 + f_y->size[0] * i16] = 0.0;
-                  }
-                }
-
-                if ((ss->size[0] == 0) || (e_y->size[1] == 0)) {
-                } else {
-                  vstride = ss->size[0] * (e_y->size[1] - 1);
-                  nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
-                    i16 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i16; ic++) {
-                      f_y->data[ic] = 0.0;
-                    }
-
-                    nx += b_m;
-                  }
-
-                  br = 0;
-                  nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
-                    ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
-                      if (e_y->data[ib] != 0.0) {
-                        ia = ar;
-                        i17 = nx + b_m;
-                        for (ic = nx; ic + 1 <= i17; ic++) {
-                          ia++;
-                          f_y->data[ic] += e_y->data[ib] * ss->data[ia - 1];
-                        }
-                      }
-
-                      ar += b_m;
-                    }
-
-                    br += k;
-                    nx += b_m;
-                  }
-                }
+              i8 = f_C->size[0] * f_C->size[1];
+              f_C->size[0] = d_C->size[0];
+              f_C->size[1] = d_C->size[1];
+              emxEnsureCapacity((emxArray__common *)f_C, i8, (int)sizeof(double));
+              loop_ub = d_C->size[0] * d_C->size[1];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                f_C->data[i8] = d_C->data[i8] + a->data[i8] / (double)n;
               }
 
-              if ((f_y->size[1] == 1) || (ky2->size[0] == 1)) {
-                i16 = abi->size[0] * abi->size[1];
-                abi->size[0] = f_y->size[0];
+              mldivide(f_C, e_y, a);
+              if ((a->size[1] == 1) || (ky2->size[0] == 1)) {
+                i8 = abi->size[0] * abi->size[1];
+                abi->size[0] = a->size[0];
                 abi->size[1] = ky2->size[1];
-                emxEnsureCapacity((emxArray__common *)abi, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)abi, i8, (int)sizeof
                                   (double));
-                loop_ub = f_y->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                loop_ub = a->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = ky2->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    abi->data[i16 + abi->size[0] * i17] = 0.0;
-                    nx = f_y->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      abi->data[i16 + abi->size[0] * i17] += f_y->data[i16 +
-                        f_y->size[0] * b_m] * ky2->data[b_m + ky2->size[0] * i17];
+                  for (i9 = 0; i9 < br; i9++) {
+                    abi->data[i8 + abi->size[0] * i9] = 0.0;
+                    vstride = a->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      abi->data[i8 + abi->size[0] * i9] += a->data[i8 + a->size
+                        [0] * k1] * ky2->data[k1 + ky2->size[0] * i9];
                     }
                   }
                 }
               } else {
-                k = f_y->size[1];
-                vstride = f_y->size[0];
-                nx = ky2->size[1];
-                i16 = abi->size[0] * abi->size[1];
-                abi->size[0] = vstride;
-                abi->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)abi, i16, (int)sizeof
+                k = a->size[1];
+                nx = a->size[0];
+                vstride = ky2->size[1];
+                i8 = abi->size[0] * abi->size[1];
+                abi->size[0] = nx;
+                abi->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)abi, i8, (int)sizeof
                                   (double));
-                b_m = f_y->size[0];
-                i16 = abi->size[0] * abi->size[1];
-                emxEnsureCapacity((emxArray__common *)abi, i16, (int)sizeof
+                m = a->size[0];
+                i8 = abi->size[0] * abi->size[1];
+                emxEnsureCapacity((emxArray__common *)abi, i8, (int)sizeof
                                   (double));
                 loop_ub = abi->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = abi->size[0];
-                  for (i17 = 0; i17 < br; i17++) {
-                    abi->data[i17 + abi->size[0] * i16] = 0.0;
+                  for (i9 = 0; i9 < br; i9++) {
+                    abi->data[i9 + abi->size[0] * i8] = 0.0;
                   }
                 }
 
-                if ((f_y->size[0] == 0) || (ky2->size[1] == 0)) {
+                if ((a->size[0] == 0) || (ky2->size[1] == 0)) {
                 } else {
-                  vstride = f_y->size[0] * (ky2->size[1] - 1);
+                  vstride = a->size[0] * (ky2->size[1] - 1);
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
-                    i16 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i16; ic++) {
+                  while ((m > 0) && (nx <= vstride)) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
                       abi->data[ic] = 0.0;
                     }
 
-                    nx += b_m;
+                    nx += m;
                   }
 
                   br = 0;
                   nx = 0;
-                  while ((b_m > 0) && (nx <= vstride)) {
+                  while ((m > 0) && (nx <= vstride)) {
                     ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
                       if (ky2->data[ib] != 0.0) {
                         ia = ar;
-                        i17 = nx + b_m;
-                        for (ic = nx; ic + 1 <= i17; ic++) {
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
                           ia++;
-                          abi->data[ic] += ky2->data[ib] * f_y->data[ia - 1];
+                          abi->data[ic] += ky2->data[ib] * a->data[ia - 1];
                         }
                       }
 
-                      ar += b_m;
+                      ar += m;
                     }
 
                     br += k;
-                    nx += b_m;
+                    nx += m;
                   }
                 }
               }
 
-              /* Jan 7 */
-              i16 = yj->size[0] * yj->size[1];
-              yj->size[0] = xij->size[1];
-              yj->size[1] = xij->size[0];
-              emxEnsureCapacity((emxArray__common *)yj, i16, (int)sizeof(double));
+              i8 = yi->size[0] * yi->size[1];
+              yi->size[0] = xij->size[1];
+              yi->size[1] = xij->size[0];
+              emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
               loop_ub = xij->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
+              for (i8 = 0; i8 < loop_ub; i8++) {
                 br = xij->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  yj->data[i17 + yj->size[0] * i16] = xij->data[i16 + xij->size
-                    [0] * i17] * C->data[i16 + C->size[0] * i17];
+                for (i9 = 0; i9 < br; i9++) {
+                  yi->data[i9 + yi->size[0] * i8] = xij->data[i8 + xij->size[0] *
+                    i9] * yj->data[i8 + yj->size[0] * i9];
                 }
               }
 
               loop_ub = abi->size[1];
-              b_m = (int)(m + 1U);
-              i16 = b_abi->size[0] * b_abi->size[1];
+              i8 = b_abi->size[0] * b_abi->size[1];
               b_abi->size[0] = 1;
               b_abi->size[1] = loop_ub;
-              emxEnsureCapacity((emxArray__common *)b_abi, i16, (int)sizeof
+              emxEnsureCapacity((emxArray__common *)b_abi, i8, (int)sizeof
                                 (double));
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                b_abi->data[b_abi->size[0] * i16] = abi->data[(b_m + abi->size[0]
-                  * i16) - 1];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                b_abi->data[b_abi->size[0] * i8] = abi->data[((int)(b_m + 1.0) +
+                  abi->size[0] * i8) - 1];
               }
 
               repmat(b_abi, (double)n, b);
-              i16 = b->size[0] * b->size[1];
+              i8 = b->size[0] * b->size[1];
               b->size[0] = ky->size[0];
               b->size[1] = ky->size[1];
-              emxEnsureCapacity((emxArray__common *)b, i16, (int)sizeof(double));
+              emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
               loop_ub = ky->size[0] * ky->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                b->data[i16] = ky->data[i16] - b->data[i16];
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                b->data[i8] = ky->data[i8] - b->data[i8];
               }
 
-              if ((yj->size[1] == 1) || (b->size[0] == 1)) {
-                i16 = kxijy->size[0] * kxijy->size[1];
-                kxijy->size[0] = yj->size[0];
+              if ((yi->size[1] == 1) || (b->size[0] == 1)) {
+                i8 = kxijy->size[0] * kxijy->size[1];
+                kxijy->size[0] = yi->size[0];
                 kxijy->size[1] = b->size[1];
-                emxEnsureCapacity((emxArray__common *)kxijy, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)kxijy, i8, (int)sizeof
                                   (double));
-                loop_ub = yj->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                loop_ub = yi->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = b->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    kxijy->data[i16 + kxijy->size[0] * i17] = 0.0;
-                    nx = yj->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      kxijy->data[i16 + kxijy->size[0] * i17] += yj->data[i16 +
-                        yj->size[0] * b_m] * b->data[b_m + b->size[0] * i17];
+                  for (i9 = 0; i9 < br; i9++) {
+                    kxijy->data[i8 + kxijy->size[0] * i9] = 0.0;
+                    vstride = yi->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      kxijy->data[i8 + kxijy->size[0] * i9] += yi->data[i8 +
+                        yi->size[0] * k1] * b->data[k1 + b->size[0] * i9];
                     }
                   }
                 }
               } else {
-                k = yj->size[1];
-                vstride = yj->size[0];
-                nx = b->size[1];
-                i16 = kxijy->size[0] * kxijy->size[1];
-                kxijy->size[0] = vstride;
-                kxijy->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)kxijy, i16, (int)sizeof
+                k = yi->size[1];
+                nx = yi->size[0];
+                vstride = b->size[1];
+                i8 = kxijy->size[0] * kxijy->size[1];
+                kxijy->size[0] = nx;
+                kxijy->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)kxijy, i8, (int)sizeof
                                   (double));
-                b_m = yj->size[0];
-                i16 = kxijy->size[0] * kxijy->size[1];
-                emxEnsureCapacity((emxArray__common *)kxijy, i16, (int)sizeof
+                m = yi->size[0];
+                i8 = kxijy->size[0] * kxijy->size[1];
+                emxEnsureCapacity((emxArray__common *)kxijy, i8, (int)sizeof
                                   (double));
                 loop_ub = kxijy->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = kxijy->size[0];
-                  for (i17 = 0; i17 < br; i17++) {
-                    kxijy->data[i17 + kxijy->size[0] * i16] = 0.0;
+                  for (i9 = 0; i9 < br; i9++) {
+                    kxijy->data[i9 + kxijy->size[0] * i8] = 0.0;
                   }
                 }
 
                 if (b->size[1] != 0) {
-                  vstride = yj->size[0] * (b->size[1] - 1);
-                  for (nx = 0; nx <= vstride; nx += b_m) {
-                    i16 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i16; ic++) {
+                  vstride = yi->size[0] * (b->size[1] - 1);
+                  for (nx = 0; nx <= vstride; nx += m) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
                       kxijy->data[ic] = 0.0;
                     }
                   }
 
                   br = 0;
-                  for (nx = 0; nx <= vstride; nx += b_m) {
+                  for (nx = 0; nx <= vstride; nx += m) {
                     ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
                       if (b->data[ib] != 0.0) {
                         ia = ar;
-                        i17 = nx + b_m;
-                        for (ic = nx; ic + 1 <= i17; ic++) {
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
                           ia++;
-                          kxijy->data[ic] += b->data[ib] * yj->data[ia - 1];
+                          kxijy->data[ic] += b->data[ib] * yi->data[ia - 1];
                         }
                       }
 
-                      ar += b_m;
+                      ar += m;
                     }
 
                     br += k;
@@ -2835,69 +3316,69 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                 }
               }
 
-              if ((yj->size[1] == 1) || (xij->size[0] == 1)) {
-                i16 = ddx->size[0] * ddx->size[1];
-                ddx->size[0] = yj->size[0];
+              if ((yi->size[1] == 1) || (xij->size[0] == 1)) {
+                i8 = ddx->size[0] * ddx->size[1];
+                ddx->size[0] = yi->size[0];
                 ddx->size[1] = xij->size[1];
-                emxEnsureCapacity((emxArray__common *)ddx, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)ddx, i8, (int)sizeof
                                   (double));
-                loop_ub = yj->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                loop_ub = yi->size[0];
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = xij->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    ddx->data[i16 + ddx->size[0] * i17] = 0.0;
-                    nx = yj->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      ddx->data[i16 + ddx->size[0] * i17] += yj->data[i16 +
-                        yj->size[0] * b_m] * xij->data[b_m + xij->size[0] * i17];
+                  for (i9 = 0; i9 < br; i9++) {
+                    ddx->data[i8 + ddx->size[0] * i9] = 0.0;
+                    vstride = yi->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      ddx->data[i8 + ddx->size[0] * i9] += yi->data[i8 +
+                        yi->size[0] * k1] * xij->data[k1 + xij->size[0] * i9];
                     }
                   }
                 }
               } else {
-                k = yj->size[1];
-                vstride = yj->size[0];
-                nx = xij->size[1];
-                i16 = ddx->size[0] * ddx->size[1];
-                ddx->size[0] = vstride;
-                ddx->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)ddx, i16, (int)sizeof
+                k = yi->size[1];
+                nx = yi->size[0];
+                vstride = xij->size[1];
+                i8 = ddx->size[0] * ddx->size[1];
+                ddx->size[0] = nx;
+                ddx->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)ddx, i8, (int)sizeof
                                   (double));
-                b_m = yj->size[0];
-                i16 = ddx->size[0] * ddx->size[1];
-                emxEnsureCapacity((emxArray__common *)ddx, i16, (int)sizeof
+                m = yi->size[0];
+                i8 = ddx->size[0] * ddx->size[1];
+                emxEnsureCapacity((emxArray__common *)ddx, i8, (int)sizeof
                                   (double));
                 loop_ub = ddx->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = ddx->size[0];
-                  for (i17 = 0; i17 < br; i17++) {
-                    ddx->data[i17 + ddx->size[0] * i16] = 0.0;
+                  for (i9 = 0; i9 < br; i9++) {
+                    ddx->data[i9 + ddx->size[0] * i8] = 0.0;
                   }
                 }
 
                 if (xij->size[1] != 0) {
-                  vstride = yj->size[0] * (xij->size[1] - 1);
-                  for (nx = 0; nx <= vstride; nx += b_m) {
-                    i16 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i16; ic++) {
+                  vstride = yi->size[0] * (xij->size[1] - 1);
+                  for (nx = 0; nx <= vstride; nx += m) {
+                    i8 = nx + m;
+                    for (ic = nx; ic + 1 <= i8; ic++) {
                       ddx->data[ic] = 0.0;
                     }
                   }
 
                   br = 0;
-                  for (nx = 0; nx <= vstride; nx += b_m) {
+                  for (nx = 0; nx <= vstride; nx += m) {
                     ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
                       if (xij->data[ib] != 0.0) {
                         ia = ar;
-                        i17 = nx + b_m;
-                        for (ic = nx; ic + 1 <= i17; ic++) {
+                        i9 = nx + m;
+                        for (ic = nx; ic + 1 <= i9; ic++) {
                           ia++;
-                          ddx->data[ic] += xij->data[ib] * yj->data[ia - 1];
+                          ddx->data[ic] += xij->data[ib] * yi->data[ia - 1];
                         }
                       }
 
-                      ar += b_m;
+                      ar += m;
                     }
 
                     br += k;
@@ -2905,40 +3386,40 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                 }
               }
 
-              for (k1 = 0; k1 < m; k1++) {
-                b_a = ((1.0 + (double)k1) - 1.0) * (double)p + 1.0;
+              for (k1 = 0; k1 < (int)b_m; k1++) {
+                pp = ((1.0 + (double)k1) - 1.0) * (double)p + 1.0;
                 d = (1.0 + (double)k1) * (double)p;
-                if (d < b_a) {
-                  i16 = qx->size[0] * qx->size[1];
+                if (d < pp) {
+                  i8 = qx->size[0] * qx->size[1];
                   qx->size[0] = 1;
                   qx->size[1] = 0;
-                  emxEnsureCapacity((emxArray__common *)qx, i16, (int)sizeof
+                  emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof
                                     (double));
-                } else if (b_a == b_a) {
-                  i16 = qx->size[0] * qx->size[1];
+                } else if (pp == pp) {
+                  i8 = qx->size[0] * qx->size[1];
                   qx->size[0] = 1;
-                  qx->size[1] = (int)(d - b_a) + 1;
-                  emxEnsureCapacity((emxArray__common *)qx, i16, (int)sizeof
+                  qx->size[1] = (int)(d - pp) + 1;
+                  emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof
                                     (double));
-                  loop_ub = (int)(d - b_a);
-                  for (i16 = 0; i16 <= loop_ub; i16++) {
-                    qx->data[qx->size[0] * i16] = b_a + (double)i16;
+                  loop_ub = (int)(d - pp);
+                  for (i8 = 0; i8 <= loop_ub; i8++) {
+                    qx->data[qx->size[0] * i8] = pp + (double)i8;
                   }
                 } else {
-                  ndbl = std::floor((d - b_a) + 0.5);
-                  apnd = b_a + ndbl;
+                  ndbl = std::floor((d - pp) + 0.5);
+                  apnd = pp + ndbl;
                   cdiff = apnd - d;
-                  if (b_a >= d) {
-                    pp = b_a;
-                  } else {
-                    pp = d;
+                  absa = std::abs(pp);
+                  absb = std::abs(d);
+                  if (absa >= absb) {
+                    absb = absa;
                   }
 
-                  if (std::abs(cdiff) < 4.4408920985006262E-16 * pp) {
+                  if (std::abs(cdiff) < 4.4408920985006262E-16 * absb) {
                     ndbl++;
                     apnd = d;
                   } else if (cdiff > 0.0) {
-                    apnd = b_a + (ndbl - 1.0);
+                    apnd = pp + (ndbl - 1.0);
                   } else {
                     ndbl++;
                   }
@@ -2949,194 +3430,194 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                     nx = 0;
                   }
 
-                  i16 = qx->size[0] * qx->size[1];
+                  i8 = qx->size[0] * qx->size[1];
                   qx->size[0] = 1;
                   qx->size[1] = nx;
-                  emxEnsureCapacity((emxArray__common *)qx, i16, (int)sizeof
+                  emxEnsureCapacity((emxArray__common *)qx, i8, (int)sizeof
                                     (double));
                   if (nx > 0) {
-                    qx->data[0] = b_a;
+                    qx->data[0] = pp;
                     if (nx > 1) {
                       qx->data[nx - 1] = apnd;
-                      vstride = (nx - 1) / 2;
-                      for (k = 1; k < vstride; k++) {
-                        qx->data[k] = b_a + (double)k;
+                      nm1d2 = (nx - 1) / 2;
+                      for (k = 1; k < nm1d2; k++) {
+                        qx->data[k] = pp + (double)k;
                         qx->data[(nx - k) - 1] = apnd - (double)k;
                       }
 
-                      if (vstride << 1 == nx - 1) {
-                        qx->data[vstride] = (b_a + apnd) / 2.0;
+                      if (nm1d2 << 1 == nx - 1) {
+                        qx->data[nm1d2] = (pp + apnd) / 2.0;
                       } else {
-                        qx->data[vstride] = b_a + (double)vstride;
-                        qx->data[vstride + 1] = apnd - (double)vstride;
+                        qx->data[nm1d2] = pp + (double)nm1d2;
+                        qx->data[nm1d2 + 1] = apnd - (double)nm1d2;
                       }
                     }
                   }
                 }
 
                 loop_ub = abi->size[1];
-                i16 = s->size[0];
+                i8 = s->size[0];
                 s->size[0] = loop_ub;
-                emxEnsureCapacity((emxArray__common *)s, i16, (int)sizeof(double));
-                for (i16 = 0; i16 < loop_ub; i16++) {
-                  s->data[i16] = abi->data[k1 + abi->size[0] * i16];
+                emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  s->data[i8] = abi->data[k1 + abi->size[0] * i8];
                 }
 
                 if ((kxijy->size[1] == 1) || (s->size[0] == 1)) {
-                  i16 = e_C->size[0];
+                  i8 = e_C->size[0];
                   e_C->size[0] = kxijy->size[0];
-                  emxEnsureCapacity((emxArray__common *)e_C, i16, (int)sizeof
+                  emxEnsureCapacity((emxArray__common *)e_C, i8, (int)sizeof
                                     (double));
                   loop_ub = kxijy->size[0];
-                  for (i16 = 0; i16 < loop_ub; i16++) {
-                    e_C->data[i16] = 0.0;
+                  for (i8 = 0; i8 < loop_ub; i8++) {
+                    e_C->data[i8] = 0.0;
                     br = kxijy->size[1];
-                    for (i17 = 0; i17 < br; i17++) {
-                      e_C->data[i16] += kxijy->data[i16 + kxijy->size[0] * i17] *
-                        s->data[i17];
+                    for (i9 = 0; i9 < br; i9++) {
+                      e_C->data[i8] += kxijy->data[i8 + kxijy->size[0] * i9] *
+                        s->data[i9];
                     }
                   }
                 } else {
                   k = kxijy->size[1];
                   a_idx_0 = (unsigned int)kxijy->size[0];
-                  i16 = e_C->size[0];
+                  i8 = e_C->size[0];
                   e_C->size[0] = (int)a_idx_0;
-                  emxEnsureCapacity((emxArray__common *)e_C, i16, (int)sizeof
+                  emxEnsureCapacity((emxArray__common *)e_C, i8, (int)sizeof
                                     (double));
-                  b_m = kxijy->size[0];
+                  m = kxijy->size[0];
                   vstride = e_C->size[0];
-                  i16 = e_C->size[0];
+                  i8 = e_C->size[0];
                   e_C->size[0] = vstride;
-                  emxEnsureCapacity((emxArray__common *)e_C, i16, (int)sizeof
+                  emxEnsureCapacity((emxArray__common *)e_C, i8, (int)sizeof
                                     (double));
-                  for (i16 = 0; i16 < vstride; i16++) {
-                    e_C->data[i16] = 0.0;
+                  for (i8 = 0; i8 < vstride; i8++) {
+                    e_C->data[i8] = 0.0;
                   }
 
                   nx = 0;
                   while (nx <= 0) {
-                    for (ic = 1; ic <= b_m; ic++) {
+                    for (ic = 1; ic <= m; ic++) {
                       e_C->data[ic - 1] = 0.0;
                     }
 
-                    nx = b_m;
+                    nx = m;
                   }
 
                   br = 0;
                   nx = 0;
                   while (nx <= 0) {
                     ar = 0;
-                    i16 = br + k;
-                    for (ib = br; ib + 1 <= i16; ib++) {
+                    i8 = br + k;
+                    for (ib = br; ib + 1 <= i8; ib++) {
                       if (s->data[ib] != 0.0) {
                         ia = ar;
-                        for (ic = 0; ic + 1 <= b_m; ic++) {
+                        for (ic = 0; ic + 1 <= m; ic++) {
                           ia++;
                           e_C->data[ic] += s->data[ib] * kxijy->data[ia - 1];
                         }
                       }
 
-                      ar += b_m;
+                      ar += m;
                     }
 
                     br += k;
-                    nx = b_m;
+                    nx = m;
                   }
                 }
 
-                i16 = r2->size[0] * r2->size[1];
-                r2->size[0] = 1;
-                r2->size[1] = qx->size[1];
-                emxEnsureCapacity((emxArray__common *)r2, i16, (int)sizeof(int));
+                i8 = r1->size[0] * r1->size[1];
+                r1->size[0] = 1;
+                r1->size[1] = qx->size[1];
+                emxEnsureCapacity((emxArray__common *)r1, i8, (int)sizeof(int));
                 loop_ub = qx->size[0] * qx->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
-                  r2->data[i16] = (int)qx->data[i16];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  r1->data[i8] = (int)qx->data[i8];
                 }
 
-                i16 = b_dc->size[0];
+                i8 = b_dc->size[0];
                 b_dc->size[0] = qx->size[1];
-                emxEnsureCapacity((emxArray__common *)b_dc, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)b_dc, i8, (int)sizeof
                                   (double));
                 loop_ub = qx->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
-                  b_dc->data[i16] = dc->data[(int)qx->data[qx->size[0] * i16] -
-                    1] + e_C->data[i16];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  b_dc->data[i8] = dc->data[(int)qx->data[qx->size[0] * i8] - 1]
+                    + e_C->data[i8];
                 }
 
-                loop_ub = r2->size[1];
-                for (i16 = 0; i16 < loop_ub; i16++) {
-                  dc->data[r2->data[r2->size[0] * i16] - 1] = b_dc->data[(*(int
-                    (*)[2])r2->size)[0] * i16];
+                loop_ub = r1->size[1];
+                for (i8 = 0; i8 < loop_ub; i8++) {
+                  dc->data[r1->data[r1->size[0] * i8] - 1] = b_dc->data[(*(int (*)
+                    [2])r1->size)[0] * i8];
                 }
               }
 
-              if (1 > m) {
+              if (1.0 > b_m) {
                 loop_ub = 0;
                 br = 0;
               } else {
-                loop_ub = m;
-                br = m;
+                loop_ub = (int)b_m;
+                br = (int)b_m;
               }
 
-              nx = abi->size[1];
-              i16 = a->size[0] * a->size[1];
+              vstride = abi->size[1];
+              i8 = a->size[0] * a->size[1];
               a->size[0] = loop_ub;
-              a->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)a, i16, (int)sizeof(double));
-              for (i16 = 0; i16 < nx; i16++) {
-                for (i17 = 0; i17 < loop_ub; i17++) {
-                  a->data[i17 + a->size[0] * i16] = abi->data[i17 + abi->size[0]
-                    * i16];
+              a->size[1] = vstride;
+              emxEnsureCapacity((emxArray__common *)a, i8, (int)sizeof(double));
+              for (i8 = 0; i8 < vstride; i8++) {
+                for (i9 = 0; i9 < loop_ub; i9++) {
+                  a->data[i9 + a->size[0] * i8] = abi->data[i9 + abi->size[0] *
+                    i8];
                 }
               }
 
-              nx = abi->size[1];
-              i16 = b->size[0] * b->size[1];
-              b->size[0] = nx;
+              vstride = abi->size[1];
+              i8 = b->size[0] * b->size[1];
+              b->size[0] = vstride;
               b->size[1] = br;
-              emxEnsureCapacity((emxArray__common *)b, i16, (int)sizeof(double));
-              for (i16 = 0; i16 < br; i16++) {
-                for (i17 = 0; i17 < nx; i17++) {
-                  b->data[i17 + b->size[0] * i16] = abi->data[i16 + abi->size[0]
-                    * i17];
+              emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
+              for (i8 = 0; i8 < br; i8++) {
+                for (i9 = 0; i9 < vstride; i9++) {
+                  b->data[i9 + b->size[0] * i8] = abi->data[i8 + abi->size[0] *
+                    i9];
                 }
               }
 
-              i16 = abi->size[1];
-              if ((i16 == 1) || (b->size[0] == 1)) {
-                i16 = tmp->size[0] * tmp->size[1];
+              i8 = abi->size[1];
+              if ((i8 == 1) || (b->size[0] == 1)) {
+                i8 = tmp->size[0] * tmp->size[1];
                 tmp->size[0] = a->size[0];
                 tmp->size[1] = b->size[1];
-                emxEnsureCapacity((emxArray__common *)tmp, i16, (int)sizeof
+                emxEnsureCapacity((emxArray__common *)tmp, i8, (int)sizeof
                                   (double));
                 loop_ub = a->size[0];
-                for (i16 = 0; i16 < loop_ub; i16++) {
+                for (i8 = 0; i8 < loop_ub; i8++) {
                   br = b->size[1];
-                  for (i17 = 0; i17 < br; i17++) {
-                    tmp->data[i16 + tmp->size[0] * i17] = 0.0;
-                    nx = a->size[1];
-                    for (b_m = 0; b_m < nx; b_m++) {
-                      tmp->data[i16 + tmp->size[0] * i17] += a->data[i16 +
-                        a->size[0] * b_m] * b->data[b_m + b->size[0] * i17];
+                  for (i9 = 0; i9 < br; i9++) {
+                    tmp->data[i8 + tmp->size[0] * i9] = 0.0;
+                    vstride = a->size[1];
+                    for (k1 = 0; k1 < vstride; k1++) {
+                      tmp->data[i8 + tmp->size[0] * i9] += a->data[i8 + a->size
+                        [0] * k1] * b->data[k1 + b->size[0] * i9];
                     }
                   }
                 }
               } else {
-                i16 = abi->size[1];
-                nx = b->size[1];
-                i17 = tmp->size[0] * tmp->size[1];
+                i8 = abi->size[1];
+                vstride = b->size[1];
+                i9 = tmp->size[0] * tmp->size[1];
                 tmp->size[0] = loop_ub;
-                tmp->size[1] = nx;
-                emxEnsureCapacity((emxArray__common *)tmp, i17, (int)sizeof
+                tmp->size[1] = vstride;
+                emxEnsureCapacity((emxArray__common *)tmp, i9, (int)sizeof
                                   (double));
-                i17 = tmp->size[0] * tmp->size[1];
-                emxEnsureCapacity((emxArray__common *)tmp, i17, (int)sizeof
+                i9 = tmp->size[0] * tmp->size[1];
+                emxEnsureCapacity((emxArray__common *)tmp, i9, (int)sizeof
                                   (double));
                 br = tmp->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  nx = tmp->size[0];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    tmp->data[b_m + tmp->size[0] * i17] = 0.0;
+                for (i9 = 0; i9 < br; i9++) {
+                  vstride = tmp->size[0];
+                  for (k1 = 0; k1 < vstride; k1++) {
+                    tmp->data[k1 + tmp->size[0] * i9] = 0.0;
                   }
                 }
 
@@ -3145,8 +3626,8 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                   vstride = loop_ub * (b->size[1] - 1);
                   nx = 0;
                   while ((loop_ub > 0) && (nx <= vstride)) {
-                    i17 = nx + loop_ub;
-                    for (ic = nx; ic + 1 <= i17; ic++) {
+                    i9 = nx + loop_ub;
+                    for (ic = nx; ic + 1 <= i9; ic++) {
                       tmp->data[ic] = 0.0;
                     }
 
@@ -3157,12 +3638,12 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                   nx = 0;
                   while ((loop_ub > 0) && (nx <= vstride)) {
                     ar = 0;
-                    i17 = br + i16;
-                    for (ib = br; ib + 1 <= i17; ib++) {
+                    i9 = br + i8;
+                    for (ib = br; ib + 1 <= i9; ib++) {
                       if (b->data[ib] != 0.0) {
                         ia = ar;
-                        b_m = nx + loop_ub;
-                        for (ic = nx; ic + 1 <= b_m; ic++) {
+                        k1 = nx + loop_ub;
+                        for (ic = nx; ic + 1 <= k1; ic++) {
                           ia++;
                           tmp->data[ic] += b->data[ib] * a->data[ia - 1];
                         }
@@ -3171,172 +3652,171 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
                       ar += loop_ub;
                     }
 
-                    br += i16;
+                    br += i8;
                     nx += loop_ub;
                   }
                 }
               }
 
               kron(tmp, ddx, a);
-              i16 = dd->size[0] * dd->size[1];
-              emxEnsureCapacity((emxArray__common *)dd, i16, (int)sizeof(double));
-              vstride = dd->size[0];
-              nx = dd->size[1];
-              loop_ub = vstride * nx;
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                dd->data[i16] += a->data[i16];
+              i8 = dd->size[0] * dd->size[1];
+              emxEnsureCapacity((emxArray__common *)dd, i8, (int)sizeof(double));
+              nm1d2 = dd->size[0];
+              vstride = dd->size[1];
+              loop_ub = nm1d2 * vstride;
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                dd->data[i8] += a->data[i8];
               }
 
-              i16 = D->size[0] * D->size[1];
-              emxEnsureCapacity((emxArray__common *)D, i16, (int)sizeof(double));
-              vstride = D->size[0];
-              nx = D->size[1];
-              loop_ub = vstride * nx;
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                D->data[i16] += tmp->data[i16];
+              i8 = D->size[0] * D->size[1];
+              emxEnsureCapacity((emxArray__common *)D, i8, (int)sizeof(double));
+              nm1d2 = D->size[0];
+              vstride = D->size[1];
+              loop_ub = nm1d2 * vstride;
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                D->data[i8] += tmp->data[i8];
               }
             }
 
             eye((double)dc->size[0], a);
-            i16 = b_dd->size[0] * b_dd->size[1];
+            i8 = b_dd->size[0] * b_dd->size[1];
             b_dd->size[0] = dd->size[0];
             b_dd->size[1] = dd->size[1];
-            emxEnsureCapacity((emxArray__common *)b_dd, i16, (int)sizeof(double));
+            emxEnsureCapacity((emxArray__common *)b_dd, i8, (int)sizeof(double));
             loop_ub = dd->size[0] * dd->size[1];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              b_dd->data[i16] = dd->data[i16] + a->data[i16] / (double)n;
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              b_dd->data[i8] = dd->data[i8] + a->data[i8] / (double)n;
             }
 
             inv(b_dd, a);
             if ((a->size[1] == 1) || (dc->size[0] == 1)) {
-              i16 = b_B->size[0];
-              b_B->size[0] = a->size[0];
-              emxEnsureCapacity((emxArray__common *)b_B, i16, (int)sizeof(double));
+              i8 = d_B->size[0];
+              d_B->size[0] = a->size[0];
+              emxEnsureCapacity((emxArray__common *)d_B, i8, (int)sizeof(double));
               loop_ub = a->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                b_B->data[i16] = 0.0;
+              for (i8 = 0; i8 < loop_ub; i8++) {
+                d_B->data[i8] = 0.0;
                 br = a->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  b_B->data[i16] += a->data[i16 + a->size[0] * i17] * dc->
-                    data[i17];
+                for (i9 = 0; i9 < br; i9++) {
+                  d_B->data[i8] += a->data[i8 + a->size[0] * i9] * dc->data[i9];
                 }
               }
             } else {
               k = a->size[1];
               a_idx_0 = (unsigned int)a->size[0];
-              i16 = b_B->size[0];
-              b_B->size[0] = (int)a_idx_0;
-              emxEnsureCapacity((emxArray__common *)b_B, i16, (int)sizeof(double));
-              b_m = a->size[0];
-              vstride = b_B->size[0];
-              i16 = b_B->size[0];
-              b_B->size[0] = vstride;
-              emxEnsureCapacity((emxArray__common *)b_B, i16, (int)sizeof(double));
-              for (i16 = 0; i16 < vstride; i16++) {
-                b_B->data[i16] = 0.0;
+              i8 = d_B->size[0];
+              d_B->size[0] = (int)a_idx_0;
+              emxEnsureCapacity((emxArray__common *)d_B, i8, (int)sizeof(double));
+              m = a->size[0];
+              vstride = d_B->size[0];
+              i8 = d_B->size[0];
+              d_B->size[0] = vstride;
+              emxEnsureCapacity((emxArray__common *)d_B, i8, (int)sizeof(double));
+              for (i8 = 0; i8 < vstride; i8++) {
+                d_B->data[i8] = 0.0;
               }
 
               if (a->size[0] != 0) {
                 nx = 0;
-                while ((b_m > 0) && (nx <= 0)) {
-                  for (ic = 1; ic <= b_m; ic++) {
-                    b_B->data[ic - 1] = 0.0;
+                while ((m > 0) && (nx <= 0)) {
+                  for (ic = 1; ic <= m; ic++) {
+                    d_B->data[ic - 1] = 0.0;
                   }
 
-                  nx = b_m;
+                  nx = m;
                 }
 
                 br = 0;
                 nx = 0;
-                while ((b_m > 0) && (nx <= 0)) {
+                while ((m > 0) && (nx <= 0)) {
                   ar = 0;
-                  i16 = br + k;
-                  for (ib = br; ib + 1 <= i16; ib++) {
+                  i8 = br + k;
+                  for (ib = br; ib + 1 <= i8; ib++) {
                     if (dc->data[ib] != 0.0) {
                       ia = ar;
-                      for (ic = 0; ic + 1 <= b_m; ic++) {
+                      for (ic = 0; ic + 1 <= m; ic++) {
                         ia++;
-                        b_B->data[ic] += dc->data[ib] * a->data[ia - 1];
+                        d_B->data[ic] += dc->data[ib] * a->data[ia - 1];
                       }
                     }
 
-                    ar += b_m;
+                    ar += m;
                   }
 
                   br += k;
-                  nx = b_m;
+                  nx = m;
                 }
               }
             }
 
-            i16 = ss->size[0] * ss->size[1];
-            ss->size[0] = p;
-            ss->size[1] = m;
-            emxEnsureCapacity((emxArray__common *)ss, i16, (int)sizeof(double));
-            for (k = 0; k + 1 <= b_B->size[0]; k++) {
-              ss->data[k] = b_B->data[k];
+            i8 = B0->size[0] * B0->size[1];
+            B0->size[0] = p;
+            B0->size[1] = (int)b_m;
+            emxEnsureCapacity((emxArray__common *)B0, i8, (int)sizeof(double));
+            for (k = 0; k + 1 <= d_B->size[0]; k++) {
+              B0->data[k] = d_B->data[k];
             }
 
-            if ((ss->size[1] == 1) || (D->size[0] == 1)) {
-              i16 = b_y->size[0] * b_y->size[1];
-              b_y->size[0] = ss->size[0];
+            if ((B0->size[1] == 1) || (D->size[0] == 1)) {
+              i8 = b_y->size[0] * b_y->size[1];
+              b_y->size[0] = B0->size[0];
               b_y->size[1] = D->size[1];
-              emxEnsureCapacity((emxArray__common *)b_y, i16, (int)sizeof(double));
-              loop_ub = ss->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
+              emxEnsureCapacity((emxArray__common *)b_y, i8, (int)sizeof(double));
+              loop_ub = B0->size[0];
+              for (i8 = 0; i8 < loop_ub; i8++) {
                 br = D->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  b_y->data[i16 + b_y->size[0] * i17] = 0.0;
-                  nx = ss->size[1];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    b_y->data[i16 + b_y->size[0] * i17] += ss->data[i16 +
-                      ss->size[0] * b_m] * D->data[b_m + D->size[0] * i17];
+                for (i9 = 0; i9 < br; i9++) {
+                  b_y->data[i8 + b_y->size[0] * i9] = 0.0;
+                  vstride = B0->size[1];
+                  for (k1 = 0; k1 < vstride; k1++) {
+                    b_y->data[i8 + b_y->size[0] * i9] += B0->data[i8 + B0->size
+                      [0] * k1] * D->data[k1 + D->size[0] * i9];
                   }
                 }
               }
             } else {
-              k = ss->size[1];
-              vstride = ss->size[0];
-              nx = D->size[1];
-              i16 = b_y->size[0] * b_y->size[1];
-              b_y->size[0] = vstride;
-              b_y->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)b_y, i16, (int)sizeof(double));
-              b_m = ss->size[0];
-              i16 = b_y->size[0] * b_y->size[1];
-              emxEnsureCapacity((emxArray__common *)b_y, i16, (int)sizeof(double));
+              k = B0->size[1];
+              nx = B0->size[0];
+              vstride = D->size[1];
+              i8 = b_y->size[0] * b_y->size[1];
+              b_y->size[0] = nx;
+              b_y->size[1] = vstride;
+              emxEnsureCapacity((emxArray__common *)b_y, i8, (int)sizeof(double));
+              m = B0->size[0];
+              i8 = b_y->size[0] * b_y->size[1];
+              emxEnsureCapacity((emxArray__common *)b_y, i8, (int)sizeof(double));
               loop_ub = b_y->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
+              for (i8 = 0; i8 < loop_ub; i8++) {
                 br = b_y->size[0];
-                for (i17 = 0; i17 < br; i17++) {
-                  b_y->data[i17 + b_y->size[0] * i16] = 0.0;
+                for (i9 = 0; i9 < br; i9++) {
+                  b_y->data[i9 + b_y->size[0] * i8] = 0.0;
                 }
               }
 
               if (D->size[1] != 0) {
-                vstride = ss->size[0] * (D->size[1] - 1);
-                for (nx = 0; nx <= vstride; nx += b_m) {
-                  i16 = nx + b_m;
-                  for (ic = nx; ic + 1 <= i16; ic++) {
+                vstride = B0->size[0] * (D->size[1] - 1);
+                for (nx = 0; nx <= vstride; nx += m) {
+                  i8 = nx + m;
+                  for (ic = nx; ic + 1 <= i8; ic++) {
                     b_y->data[ic] = 0.0;
                   }
                 }
 
                 br = 0;
-                for (nx = 0; nx <= vstride; nx += b_m) {
+                for (nx = 0; nx <= vstride; nx += m) {
                   ar = 0;
-                  i16 = br + k;
-                  for (ib = br; ib + 1 <= i16; ib++) {
+                  i8 = br + k;
+                  for (ib = br; ib + 1 <= i8; ib++) {
                     if (D->data[ib] != 0.0) {
                       ia = ar;
-                      i17 = nx + b_m;
-                      for (ic = nx; ic + 1 <= i17; ic++) {
+                      i9 = nx + m;
+                      for (ic = nx; ic + 1 <= i9; ic++) {
                         ia++;
-                        b_y->data[ic] += D->data[ib] * ss->data[ia - 1];
+                        b_y->data[ic] += D->data[ib] * B0->data[ia - 1];
                       }
                     }
 
-                    ar += b_m;
+                    ar += m;
                   }
 
                   br += k;
@@ -3344,78 +3824,77 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
               }
             }
 
-            i16 = b->size[0] * b->size[1];
-            b->size[0] = ss->size[1];
-            b->size[1] = ss->size[0];
-            emxEnsureCapacity((emxArray__common *)b, i16, (int)sizeof(double));
-            loop_ub = ss->size[0];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              br = ss->size[1];
-              for (i17 = 0; i17 < br; i17++) {
-                b->data[i17 + b->size[0] * i16] = ss->data[i16 + ss->size[0] *
-                  i17];
+            i8 = b->size[0] * b->size[1];
+            b->size[0] = B0->size[1];
+            b->size[1] = B0->size[0];
+            emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
+            loop_ub = B0->size[0];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              br = B0->size[1];
+              for (i9 = 0; i9 < br; i9++) {
+                b->data[i9 + b->size[0] * i8] = B0->data[i8 + B0->size[0] * i9];
               }
             }
 
             if ((b_y->size[1] == 1) || (b->size[0] == 1)) {
-              i16 = c_y->size[0] * c_y->size[1];
+              i8 = c_y->size[0] * c_y->size[1];
               c_y->size[0] = b_y->size[0];
               c_y->size[1] = b->size[1];
-              emxEnsureCapacity((emxArray__common *)c_y, i16, (int)sizeof(double));
+              emxEnsureCapacity((emxArray__common *)c_y, i8, (int)sizeof(double));
               loop_ub = b_y->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
+              for (i8 = 0; i8 < loop_ub; i8++) {
                 br = b->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  c_y->data[i16 + c_y->size[0] * i17] = 0.0;
-                  nx = b_y->size[1];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    c_y->data[i16 + c_y->size[0] * i17] += b_y->data[i16 +
-                      b_y->size[0] * b_m] * b->data[b_m + b->size[0] * i17];
+                for (i9 = 0; i9 < br; i9++) {
+                  c_y->data[i8 + c_y->size[0] * i9] = 0.0;
+                  vstride = b_y->size[1];
+                  for (k1 = 0; k1 < vstride; k1++) {
+                    c_y->data[i8 + c_y->size[0] * i9] += b_y->data[i8 +
+                      b_y->size[0] * k1] * b->data[k1 + b->size[0] * i9];
                   }
                 }
               }
             } else {
               k = b_y->size[1];
-              vstride = b_y->size[0];
-              nx = b->size[1];
-              i16 = c_y->size[0] * c_y->size[1];
-              c_y->size[0] = vstride;
-              c_y->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)c_y, i16, (int)sizeof(double));
-              b_m = b_y->size[0];
-              i16 = c_y->size[0] * c_y->size[1];
-              emxEnsureCapacity((emxArray__common *)c_y, i16, (int)sizeof(double));
+              nx = b_y->size[0];
+              vstride = b->size[1];
+              i8 = c_y->size[0] * c_y->size[1];
+              c_y->size[0] = nx;
+              c_y->size[1] = vstride;
+              emxEnsureCapacity((emxArray__common *)c_y, i8, (int)sizeof(double));
+              m = b_y->size[0];
+              i8 = c_y->size[0] * c_y->size[1];
+              emxEnsureCapacity((emxArray__common *)c_y, i8, (int)sizeof(double));
               loop_ub = c_y->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
+              for (i8 = 0; i8 < loop_ub; i8++) {
                 br = c_y->size[0];
-                for (i17 = 0; i17 < br; i17++) {
-                  c_y->data[i17 + c_y->size[0] * i16] = 0.0;
+                for (i9 = 0; i9 < br; i9++) {
+                  c_y->data[i9 + c_y->size[0] * i8] = 0.0;
                 }
               }
 
               vstride = b_y->size[0] * (b->size[1] - 1);
-              for (nx = 0; nx <= vstride; nx += b_m) {
-                i16 = nx + b_m;
-                for (ic = nx; ic + 1 <= i16; ic++) {
+              for (nx = 0; nx <= vstride; nx += m) {
+                i8 = nx + m;
+                for (ic = nx; ic + 1 <= i8; ic++) {
                   c_y->data[ic] = 0.0;
                 }
               }
 
               br = 0;
-              for (nx = 0; nx <= vstride; nx += b_m) {
+              for (nx = 0; nx <= vstride; nx += m) {
                 ar = 0;
-                i16 = br + k;
-                for (ib = br; ib + 1 <= i16; ib++) {
+                i8 = br + k;
+                for (ib = br; ib + 1 <= i8; ib++) {
                   if (b->data[ib] != 0.0) {
                     ia = ar;
-                    i17 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i17; ic++) {
+                    i9 = nx + m;
+                    for (ic = nx; ic + 1 <= i9; ic++) {
                       ia++;
                       c_y->data[ic] += b->data[ib] * b_y->data[ia - 1];
                     }
                   }
 
-                  ar += b_m;
+                  ar += m;
                 }
 
                 br += k;
@@ -3423,740 +3902,400 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
             }
 
             eig(c_y, Vc, Dc);
-            i16 = B->size[0] * B->size[1];
+            i8 = B->size[0] * B->size[1];
             B->size[0] = Vc->size[0];
             B->size[1] = Vc->size[1];
-            emxEnsureCapacity((emxArray__common *)B, i16, (int)sizeof(double));
+            emxEnsureCapacity((emxArray__common *)B, i8, (int)sizeof(double));
             loop_ub = Vc->size[0] * Vc->size[1];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              B->data[i16] = Vc->data[i16].re;
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              B->data[i8] = Vc->data[i8].re;
             }
 
-            /* Jan 13 Change for C */
+            /* Change for C */
             c_diag(Dc, R);
-            g_sort(R, iidx);
-            i16 = s->size[0];
+            i8 = s->size[0];
+            s->size[0] = R->size[0];
+            emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
+            loop_ub = R->size[0];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              s->data[i8] = R->data[i8].re;
+            }
+
+            c_sort(s, iidx);
+            i8 = s->size[0];
             s->size[0] = iidx->size[0];
-            emxEnsureCapacity((emxArray__common *)s, i16, (int)sizeof(double));
+            emxEnsureCapacity((emxArray__common *)s, i8, (int)sizeof(double));
             loop_ub = iidx->size[0];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              s->data[i16] = iidx->data[i16];
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              s->data[i8] = iidx->data[i8];
             }
 
             loop_ub = B->size[0];
-            i16 = ss->size[0] * ss->size[1];
-            ss->size[0] = loop_ub;
-            ss->size[1] = iidx->size[0];
-            emxEnsureCapacity((emxArray__common *)ss, i16, (int)sizeof(double));
+            i8 = yi->size[0] * yi->size[1];
+            yi->size[0] = loop_ub;
+            yi->size[1] = iidx->size[0];
+            emxEnsureCapacity((emxArray__common *)yi, i8, (int)sizeof(double));
             br = iidx->size[0];
-            for (i16 = 0; i16 < br; i16++) {
-              for (i17 = 0; i17 < loop_ub; i17++) {
-                ss->data[i17 + ss->size[0] * i16] = B->data[i17 + B->size[0] *
-                  (iidx->data[i16] - 1)];
+            for (i8 = 0; i8 < br; i8++) {
+              for (i9 = 0; i9 < loop_ub; i9++) {
+                yi->data[i9 + yi->size[0] * i8] = B->data[i9 + B->size[0] *
+                  (iidx->data[i8] - 1)];
               }
             }
 
-            if (1 > b_ip) {
+            if (1.0 > ip) {
               loop_ub = 0;
             } else {
-              loop_ub = b_ip;
+              loop_ub = (int)ip;
             }
 
             br = B->size[0];
-            i16 = B->size[0] * B->size[1];
+            i8 = B->size[0] * B->size[1];
             B->size[0] = br;
             B->size[1] = loop_ub;
-            emxEnsureCapacity((emxArray__common *)B, i16, (int)sizeof(double));
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              for (i17 = 0; i17 < br; i17++) {
-                B->data[i17 + B->size[0] * i16] = ss->data[i17 + ss->size[0] *
-                  i16];
+            emxEnsureCapacity((emxArray__common *)B, i8, (int)sizeof(double));
+            for (i8 = 0; i8 < loop_ub; i8++) {
+              for (i9 = 0; i9 < br; i9++) {
+                B->data[i9 + B->size[0] * i8] = yi->data[i9 + yi->size[0] * i8];
               }
             }
           }
         }
 
-        if (guard1) {
-          i16 = yj->size[0] * yj->size[1];
-          yj->size[0] = p;
-          yj->size[1] = p;
-          emxEnsureCapacity((emxArray__common *)yj, i16, (int)sizeof(double));
-          loop_ub = p * p;
-          for (i16 = 0; i16 < loop_ub; i16++) {
-            yj->data[i16] = 0.0;
+        nm1d2 = (int)which_dim->data[iter];
+        loop_ub = B->size[1];
+        for (i8 = 0; i8 < loop_ub; i8++) {
+          br = B->size[0];
+          for (i9 = 0; i9 < br; i9++) {
+            BB->data[(i9 + BB->size[0] * i8) + BB->size[0] * BB->size[1] *
+              (nm1d2 - 1)] = B->data[i9 + B->size[0] * i8];
+          }
+        }
+
+        if (d_strcmp(method)) {
+          i8 = (int)((1.0 + (-1.0 - ((double)p - 1.0))) / -1.0);
+          for (nm1d2 = 0; nm1d2 < i8; nm1d2++) {
+            vstride = (p - nm1d2) - 1;
+            if (1 > vstride) {
+              loop_ub = -1;
+            } else {
+              loop_ub = vstride - 1;
+            }
+
+            br = yi->size[0] - 1;
+            for (i9 = 0; i9 <= loop_ub; i9++) {
+              for (k1 = 0; k1 <= br; k1++) {
+                BB->data[(k1 + BB->size[0] * i9) + BB->size[0] * BB->size[1] *
+                  (vstride - 1)] = yi->data[k1 + yi->size[0] * i9];
+              }
+            }
           }
 
-          for (j = 0; j < Ifast_idx_0; j++) {
-            i16 = xij->size[0] * xij->size[1];
-            xij->size[0] = n;
-            xij->size[1] = p;
-            emxEnsureCapacity((emxArray__common *)xij, i16, (int)sizeof(double));
-            for (vstride = 0; vstride < p; vstride++) {
-              loop_ub = x->size[0] - 1;
-              i16 = e_Ifast->size[0] * e_Ifast->size[1];
-              e_Ifast->size[0] = Ifast->size[0];
-              e_Ifast->size[1] = Ifast->size[1];
-              emxEnsureCapacity((emxArray__common *)e_Ifast, i16, (int)sizeof
-                                (int));
-              br = Ifast->size[1];
-              for (i16 = 0; i16 < br; i16++) {
-                nx = Ifast->size[0];
-                for (i17 = 0; i17 < nx; i17++) {
-                  e_Ifast->data[i17 + e_Ifast->size[0] * i16] = (int)Ifast->
-                    data[i17 + Ifast->size[0] * i16];
-                }
-              }
+          exitg1 = true;
+        } else {
+          /* B = B(:,1:(ip-1)); */
+          iter++;
+        }
+      }
 
-              pp = x->data[(e_Ifast->data[j] + x->size[0] * vstride) - 1];
-              for (i16 = 0; i16 <= loop_ub; i16++) {
-                xij->data[i16 + xij->size[0] * vstride] = x->data[i16 + x->size
-                  [0] * vstride] - pp;
-              }
+      emxFree_int32_T(&e_Ifast);
+      emxFree_int32_T(&d_Ifast);
+      emxFree_real_T(&c_abi);
+      emxFree_real_T(&b_dc);
+      emxFree_int32_T(&c_Ifast);
+      emxFree_int32_T(&b_Ifast);
+      emxFree_real_T(&e_B);
+      emxFree_real_T(&e_V);
+      emxFree_real_T(&g_C);
+      emxFree_real_T(&b_xfast);
+      emxFree_real_T(&b_U);
+      emxFree_real_T(&d_V);
+      emxFree_real_T(&f_C);
+      emxFree_real_T(&b_abi);
+      emxFree_real_T(&b_dd);
+      emxFree_real_T(&g_y);
+      emxFree_real_T(&f_y);
+      emxFree_real_T(&e_y);
+      emxFreeMatrix_cell_wrap_0(reshapes);
+      emxFree_real_T(&d_y);
+      emxFree_real_T(&c_y);
+      emxFree_real_T(&b_y);
+      emxFree_int32_T(&r1);
+      emxFree_real_T(&e_C);
+      emxFree_real_T(&d_C);
+      emxFree_real_T(&c_C);
+      emxFree_real_T(&b_C);
+      emxFree_creal_T(&R);
+      emxFree_real_T(&d_B);
+      emxFree_real_T(&B0);
+      emxFree_real_T(&tmp);
+      emxFree_real_T(&ddx);
+      emxFree_real_T(&kxijy);
+      emxFree_real_T(&dd);
+      emxFree_real_T(&abi);
+      emxFree_real_T(&dxij);
+      emxFree_real_T(&xij);
+      emxFree_real_T(&xfast);
+      emxFree_real_T(&Ifast);
+      emxFree_real_T(&D);
+    }
+
+    emxFree_real_T(&onexi);
+    nm1d2 = 0;
+    emxInit_real_T1(&b_B, 1);
+    emxInit_real_T1(&c_B, 1);
+    while (nm1d2 <= p - 1) {
+      loop_ub = BB->size[0];
+      br = BB->size[1];
+      i8 = b->size[0] * b->size[1];
+      b->size[0] = loop_ub;
+      b->size[1] = br;
+      emxEnsureCapacity((emxArray__common *)b, i8, (int)sizeof(double));
+      for (i8 = 0; i8 < br; i8++) {
+        for (i9 = 0; i9 < loop_ub; i9++) {
+          b->data[i9 + b->size[0] * i8] = BB->data[(i9 + BB->size[0] * i8) +
+            BB->size[0] * BB->size[1] * nm1d2];
+        }
+      }
+
+      guard1 = false;
+      if (ss->size[1] == 1) {
+        guard1 = true;
+      } else {
+        i8 = BB->size[0];
+        if (i8 == 1) {
+          guard1 = true;
+        } else {
+          k = ss->size[1];
+          i8 = BB->size[1];
+          nx = ss->size[0];
+          i9 = B->size[0] * B->size[1];
+          B->size[0] = nx;
+          B->size[1] = i8;
+          emxEnsureCapacity((emxArray__common *)B, i9, (int)sizeof(double));
+          m = ss->size[0];
+          i8 = B->size[0] * B->size[1];
+          emxEnsureCapacity((emxArray__common *)B, i8, (int)sizeof(double));
+          loop_ub = B->size[1];
+          for (i8 = 0; i8 < loop_ub; i8++) {
+            br = B->size[0];
+            for (i9 = 0; i9 < br; i9++) {
+              B->data[i9 + B->size[0] * i8] = 0.0;
             }
+          }
 
-            i16 = dxij->size[0];
-            dxij->size[0] = n;
-            emxEnsureCapacity((emxArray__common *)dxij, i16, (int)sizeof(double));
-            for (i16 = 0; i16 < n; i16++) {
-              dxij->data[i16] = 0.0;
-            }
-
-            for (vstride = 0; vstride < m; vstride++) {
-              loop_ub = V->size[0];
-              i16 = d_Ifast->size[0] * d_Ifast->size[1];
-              d_Ifast->size[0] = Ifast->size[0];
-              d_Ifast->size[1] = Ifast->size[1];
-              emxEnsureCapacity((emxArray__common *)d_Ifast, i16, (int)sizeof
-                                (int));
-              br = Ifast->size[1];
-              for (i16 = 0; i16 < br; i16++) {
-                nx = Ifast->size[0];
-                for (i17 = 0; i17 < nx; i17++) {
-                  d_Ifast->data[i17 + d_Ifast->size[0] * i16] = (int)Ifast->
-                    data[i17 + Ifast->size[0] * i16];
-                }
-              }
-
-              pp = V->data[(d_Ifast->data[j] + V->size[0] * vstride) - 1];
-              i16 = e_V->size[0];
-              e_V->size[0] = loop_ub;
-              emxEnsureCapacity((emxArray__common *)e_V, i16, (int)sizeof(double));
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                e_V->data[i16] = V->data[i16 + V->size[0] * vstride] - pp;
-              }
-
-              b_power(e_V, s);
-              i16 = dxij->size[0];
-              emxEnsureCapacity((emxArray__common *)dxij, i16, (int)sizeof
-                                (double));
-              loop_ub = dxij->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                dxij->data[i16] += s->data[i16];
-              }
-            }
-
-            i16 = s->size[0];
-            s->size[0] = dxij->size[0];
-            emxEnsureCapacity((emxArray__common *)s, i16, (int)sizeof(double));
-            loop_ub = dxij->size[0];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              s->data[i16] = dxij->data[i16];
-            }
-
-            f_sort(s);
-            if ((h2 >= s->data[(int)(2.0 * (double)m) - 1]) || rtIsNaN(s->data
-                 [(int)(2.0 * (double)m) - 1])) {
-              pp = h2;
+          if (ss->size[0] == 0) {
+          } else {
+            i8 = BB->size[1];
+            if (i8 == 0) {
             } else {
-              pp = s->data[(int)(2.0 * (double)m) - 1];
-            }
-
-            i16 = dxij->size[0];
-            emxEnsureCapacity((emxArray__common *)dxij, i16, (int)sizeof(double));
-            loop_ub = dxij->size[0];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              dxij->data[i16] = -dxij->data[i16] / pp;
-            }
-
-            b_exp(dxij);
-            loop_ub = xij->size[1];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              br = xij->size[0];
-              for (i17 = 0; i17 < br; i17++) {
-                onexi->data[i17 + onexi->size[0] * i16] = xij->data[i17 +
-                  xij->size[0] * i16];
-              }
-            }
-
-            b_repmat(dxij, (double)p + 1.0, a);
-            i16 = U->size[0] * U->size[1];
-            U->size[0] = onexi->size[1];
-            U->size[1] = onexi->size[0];
-            emxEnsureCapacity((emxArray__common *)U, i16, (int)sizeof(double));
-            loop_ub = onexi->size[0];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              br = onexi->size[1];
-              for (i17 = 0; i17 < br; i17++) {
-                U->data[i17 + U->size[0] * i16] = onexi->data[i16 + onexi->size
-                  [0] * i17] * a->data[i16 + a->size[0] * i17];
-              }
-            }
-
-            if ((U->size[1] == 1) || (onexi->size[0] == 1)) {
-              i16 = b_C->size[0] * b_C->size[1];
-              b_C->size[0] = U->size[0];
-              b_C->size[1] = onexi->size[1];
-              emxEnsureCapacity((emxArray__common *)b_C, i16, (int)sizeof(double));
-              loop_ub = U->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = onexi->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  b_C->data[i16 + b_C->size[0] * i17] = 0.0;
-                  nx = U->size[1];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    b_C->data[i16 + b_C->size[0] * i17] += U->data[i16 + U->
-                      size[0] * b_m] * onexi->data[b_m + onexi->size[0] * i17];
-                  }
-                }
-              }
-            } else {
-              k = U->size[1];
-              vstride = U->size[0];
-              nx = onexi->size[1];
-              i16 = b_C->size[0] * b_C->size[1];
-              b_C->size[0] = vstride;
-              b_C->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)b_C, i16, (int)sizeof(double));
-              b_m = U->size[0];
-              i16 = b_C->size[0] * b_C->size[1];
-              emxEnsureCapacity((emxArray__common *)b_C, i16, (int)sizeof(double));
-              loop_ub = b_C->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = b_C->size[0];
-                for (i17 = 0; i17 < br; i17++) {
-                  b_C->data[i17 + b_C->size[0] * i16] = 0.0;
-                }
-              }
-
-              if ((U->size[0] == 0) || (onexi->size[1] == 0)) {
-              } else {
-                vstride = U->size[0] * (onexi->size[1] - 1);
-                nx = 0;
-                while ((b_m > 0) && (nx <= vstride)) {
-                  i16 = nx + b_m;
-                  for (ic = nx; ic + 1 <= i16; ic++) {
-                    b_C->data[ic] = 0.0;
-                  }
-
-                  nx += b_m;
+              i8 = BB->size[1] - 1;
+              vstride = ss->size[0] * i8;
+              nx = 0;
+              while ((m > 0) && (nx <= vstride)) {
+                i8 = nx + m;
+                for (ic = nx; ic + 1 <= i8; ic++) {
+                  B->data[ic] = 0.0;
                 }
 
-                br = 0;
-                nx = 0;
-                while ((b_m > 0) && (nx <= vstride)) {
-                  ar = 0;
-                  i16 = br + k;
-                  for (ib = br; ib + 1 <= i16; ib++) {
-                    if (onexi->data[ib] != 0.0) {
-                      ia = ar;
-                      i17 = nx + b_m;
-                      for (ic = nx; ic + 1 <= i17; ic++) {
-                        ia++;
-                        b_C->data[ic] += onexi->data[ib] * U->data[ia - 1];
-                      }
-                    }
-
-                    ar += b_m;
-                  }
-
-                  br += k;
-                  nx += b_m;
-                }
-              }
-            }
-
-            eye((double)p + 1.0, a);
-            i16 = g_C->size[0] * g_C->size[1];
-            g_C->size[0] = b_C->size[0];
-            g_C->size[1] = b_C->size[1];
-            emxEnsureCapacity((emxArray__common *)g_C, i16, (int)sizeof(double));
-            loop_ub = b_C->size[0] * b_C->size[1];
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              g_C->data[i16] = b_C->data[i16] + a->data[i16] / (double)n;
-            }
-
-            inv(g_C, ss);
-            if ((U->size[1] == 1) || (ky1->size[0] == 1)) {
-              i16 = g_y->size[0] * g_y->size[1];
-              g_y->size[0] = U->size[0];
-              g_y->size[1] = ky1->size[1];
-              emxEnsureCapacity((emxArray__common *)g_y, i16, (int)sizeof(double));
-              loop_ub = U->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = ky1->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  g_y->data[i16 + g_y->size[0] * i17] = 0.0;
-                  nx = U->size[1];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    g_y->data[i16 + g_y->size[0] * i17] += U->data[i16 + U->
-                      size[0] * b_m] * ky1->data[b_m + ky1->size[0] * i17];
-                  }
-                }
-              }
-            } else {
-              k = U->size[1];
-              vstride = U->size[0];
-              nx = ky1->size[1];
-              i16 = g_y->size[0] * g_y->size[1];
-              g_y->size[0] = vstride;
-              g_y->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)g_y, i16, (int)sizeof(double));
-              b_m = U->size[0];
-              i16 = g_y->size[0] * g_y->size[1];
-              emxEnsureCapacity((emxArray__common *)g_y, i16, (int)sizeof(double));
-              loop_ub = g_y->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = g_y->size[0];
-                for (i17 = 0; i17 < br; i17++) {
-                  g_y->data[i17 + g_y->size[0] * i16] = 0.0;
-                }
-              }
-
-              if ((U->size[0] == 0) || (ky1->size[1] == 0)) {
-              } else {
-                vstride = U->size[0] * (ky1->size[1] - 1);
-                nx = 0;
-                while ((b_m > 0) && (nx <= vstride)) {
-                  i16 = nx + b_m;
-                  for (ic = nx; ic + 1 <= i16; ic++) {
-                    g_y->data[ic] = 0.0;
-                  }
-
-                  nx += b_m;
-                }
-
-                br = 0;
-                nx = 0;
-                while ((b_m > 0) && (nx <= vstride)) {
-                  ar = 0;
-                  i16 = br + k;
-                  for (ib = br; ib + 1 <= i16; ib++) {
-                    if (ky1->data[ib] != 0.0) {
-                      ia = ar;
-                      i17 = nx + b_m;
-                      for (ic = nx; ic + 1 <= i17; ic++) {
-                        ia++;
-                        g_y->data[ic] += ky1->data[ib] * U->data[ia - 1];
-                      }
-                    }
-
-                    ar += b_m;
-                  }
-
-                  br += k;
-                  nx += b_m;
-                }
-              }
-            }
-
-            if ((ss->size[1] == 1) || (g_y->size[0] == 1)) {
-              i16 = abi->size[0] * abi->size[1];
-              abi->size[0] = ss->size[0];
-              abi->size[1] = g_y->size[1];
-              emxEnsureCapacity((emxArray__common *)abi, i16, (int)sizeof(double));
-              loop_ub = ss->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = g_y->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  abi->data[i16 + abi->size[0] * i17] = 0.0;
-                  nx = ss->size[1];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    abi->data[i16 + abi->size[0] * i17] += ss->data[i16 +
-                      ss->size[0] * b_m] * g_y->data[b_m + g_y->size[0] * i17];
-                  }
-                }
-              }
-            } else {
-              k = ss->size[1];
-              vstride = ss->size[0];
-              nx = g_y->size[1];
-              i16 = abi->size[0] * abi->size[1];
-              abi->size[0] = vstride;
-              abi->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)abi, i16, (int)sizeof(double));
-              b_m = ss->size[0];
-              i16 = abi->size[0] * abi->size[1];
-              emxEnsureCapacity((emxArray__common *)abi, i16, (int)sizeof(double));
-              loop_ub = abi->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = abi->size[0];
-                for (i17 = 0; i17 < br; i17++) {
-                  abi->data[i17 + abi->size[0] * i16] = 0.0;
-                }
-              }
-
-              if ((ss->size[0] == 0) || (g_y->size[1] == 0)) {
-              } else {
-                vstride = ss->size[0] * (g_y->size[1] - 1);
-                nx = 0;
-                while ((b_m > 0) && (nx <= vstride)) {
-                  i16 = nx + b_m;
-                  for (ic = nx; ic + 1 <= i16; ic++) {
-                    abi->data[ic] = 0.0;
-                  }
-
-                  nx += b_m;
-                }
-
-                br = 0;
-                nx = 0;
-                while ((b_m > 0) && (nx <= vstride)) {
-                  ar = 0;
-                  i16 = br + k;
-                  for (ib = br; ib + 1 <= i16; ib++) {
-                    if (g_y->data[ib] != 0.0) {
-                      ia = ar;
-                      i17 = nx + b_m;
-                      for (ic = nx; ic + 1 <= i17; ic++) {
-                        ia++;
-                        abi->data[ic] += g_y->data[ib] * ss->data[ia - 1];
-                      }
-                    }
-
-                    ar += b_m;
-                  }
-
-                  br += k;
-                  nx += b_m;
-                }
-              }
-            }
-
-            /* *ky2;   %Jan 7 */
-            i16 = abi->size[1];
-            if ((i16 == 1) || (DD->size[0] == 1)) {
-              loop_ub = abi->size[1];
-              i16 = c_abi->size[0] * c_abi->size[1];
-              c_abi->size[0] = p;
-              c_abi->size[1] = loop_ub;
-              emxEnsureCapacity((emxArray__common *)c_abi, i16, (int)sizeof
-                                (double));
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                for (i17 = 0; i17 < p; i17++) {
-                  c_abi->data[i17 + c_abi->size[0] * i16] = abi->data[i17 +
-                    abi->size[0] * i16];
-                }
-              }
-
-              i16 = h_y->size[0] * h_y->size[1];
-              h_y->size[0] = c_abi->size[0];
-              h_y->size[1] = DD->size[1];
-              emxEnsureCapacity((emxArray__common *)h_y, i16, (int)sizeof(double));
-              loop_ub = c_abi->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = DD->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  h_y->data[i16 + h_y->size[0] * i17] = 0.0;
-                  nx = c_abi->size[1];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    h_y->data[i16 + h_y->size[0] * i17] += c_abi->data[i16 +
-                      c_abi->size[0] * b_m] * DD->data[b_m + DD->size[0] * i17];
-                  }
-                }
-              }
-            } else {
-              i16 = abi->size[1];
-              nx = DD->size[1];
-              i17 = h_y->size[0] * h_y->size[1];
-              h_y->size[0] = p;
-              h_y->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)h_y, i17, (int)sizeof(double));
-              i17 = h_y->size[0] * h_y->size[1];
-              emxEnsureCapacity((emxArray__common *)h_y, i17, (int)sizeof(double));
-              loop_ub = h_y->size[1];
-              for (i17 = 0; i17 < loop_ub; i17++) {
-                br = h_y->size[0];
-                for (b_m = 0; b_m < br; b_m++) {
-                  h_y->data[b_m + h_y->size[0] * i17] = 0.0;
-                }
-              }
-
-              if (DD->size[1] != 0) {
-                vstride = p * (DD->size[1] - 1);
-                for (nx = 0; nx <= vstride; nx += p) {
-                  i17 = nx + p;
-                  for (ic = nx; ic + 1 <= i17; ic++) {
-                    h_y->data[ic] = 0.0;
-                  }
-                }
-
-                br = 0;
-                for (nx = 0; nx <= vstride; nx += p) {
-                  ar = 0;
-                  i17 = br + i16;
-                  for (ib = br; ib + 1 <= i17; ib++) {
-                    if (DD->data[ib] != 0.0) {
-                      ia = ar;
-                      b_m = nx + p;
-                      for (ic = nx; ic + 1 <= b_m; ic++) {
-                        ia++;
-                        h_y->data[ic] += DD->data[ib] * abi->data[(ia - 1) % p +
-                          abi->size[0] * ((ia - 1) / p)];
-                      }
-                    }
-
-                    ar += p;
-                  }
-
-                  br += i16;
-                }
-              }
-            }
-
-            loop_ub = abi->size[1];
-            i16 = b->size[0] * b->size[1];
-            b->size[0] = loop_ub;
-            b->size[1] = p;
-            emxEnsureCapacity((emxArray__common *)b, i16, (int)sizeof(double));
-            for (i16 = 0; i16 < p; i16++) {
-              for (i17 = 0; i17 < loop_ub; i17++) {
-                b->data[i17 + b->size[0] * i16] = abi->data[i16 + abi->size[0] *
-                  i17];
-              }
-            }
-
-            if ((h_y->size[1] == 1) || (b->size[0] == 1)) {
-              i16 = c_C->size[0] * c_C->size[1];
-              c_C->size[0] = h_y->size[0];
-              c_C->size[1] = b->size[1];
-              emxEnsureCapacity((emxArray__common *)c_C, i16, (int)sizeof(double));
-              loop_ub = h_y->size[0];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = b->size[1];
-                for (i17 = 0; i17 < br; i17++) {
-                  c_C->data[i16 + c_C->size[0] * i17] = 0.0;
-                  nx = h_y->size[1];
-                  for (b_m = 0; b_m < nx; b_m++) {
-                    c_C->data[i16 + c_C->size[0] * i17] += h_y->data[i16 +
-                      h_y->size[0] * b_m] * b->data[b_m + b->size[0] * i17];
-                  }
-                }
-              }
-            } else {
-              k = h_y->size[1];
-              vstride = h_y->size[0];
-              nx = b->size[1];
-              i16 = c_C->size[0] * c_C->size[1];
-              c_C->size[0] = vstride;
-              c_C->size[1] = nx;
-              emxEnsureCapacity((emxArray__common *)c_C, i16, (int)sizeof(double));
-              b_m = h_y->size[0];
-              i16 = c_C->size[0] * c_C->size[1];
-              emxEnsureCapacity((emxArray__common *)c_C, i16, (int)sizeof(double));
-              loop_ub = c_C->size[1];
-              for (i16 = 0; i16 < loop_ub; i16++) {
-                br = c_C->size[0];
-                for (i17 = 0; i17 < br; i17++) {
-                  c_C->data[i17 + c_C->size[0] * i16] = 0.0;
-                }
-              }
-
-              vstride = h_y->size[0] * (b->size[1] - 1);
-              for (nx = 0; nx <= vstride; nx += b_m) {
-                i16 = nx + b_m;
-                for (ic = nx; ic + 1 <= i16; ic++) {
-                  c_C->data[ic] = 0.0;
-                }
+                nx += m;
               }
 
               br = 0;
-              for (nx = 0; nx <= vstride; nx += b_m) {
+              nx = 0;
+              while ((m > 0) && (nx <= vstride)) {
                 ar = 0;
-                i16 = br + k;
-                for (ib = br; ib + 1 <= i16; ib++) {
+                i8 = br + k;
+                for (ib = br; ib + 1 <= i8; ib++) {
                   if (b->data[ib] != 0.0) {
                     ia = ar;
-                    i17 = nx + b_m;
-                    for (ic = nx; ic + 1 <= i17; ic++) {
+                    i9 = nx + m;
+                    for (ic = nx; ic + 1 <= i9; ic++) {
                       ia++;
-                      c_C->data[ic] += b->data[ib] * h_y->data[ia - 1];
+                      B->data[ic] += b->data[ib] * ss->data[ia - 1];
                     }
                   }
 
-                  ar += b_m;
+                  ar += m;
                 }
 
                 br += k;
+                nx += m;
               }
             }
+          }
+        }
+      }
 
-            i16 = yj->size[0] * yj->size[1];
-            emxEnsureCapacity((emxArray__common *)yj, i16, (int)sizeof(double));
-            vstride = yj->size[0];
-            nx = yj->size[1];
-            loop_ub = vstride * nx;
-            for (i16 = 0; i16 < loop_ub; i16++) {
-              yj->data[i16] += c_C->data[i16];
+      if (guard1) {
+        i8 = B->size[0] * B->size[1];
+        B->size[0] = ss->size[0];
+        B->size[1] = b->size[1];
+        emxEnsureCapacity((emxArray__common *)B, i8, (int)sizeof(double));
+        loop_ub = ss->size[0];
+        for (i8 = 0; i8 < loop_ub; i8++) {
+          br = b->size[1];
+          for (i9 = 0; i9 < br; i9++) {
+            B->data[i8 + B->size[0] * i9] = 0.0;
+            vstride = ss->size[1];
+            for (k1 = 0; k1 < vstride; k1++) {
+              B->data[i8 + B->size[0] * i9] += ss->data[i8 + ss->size[0] * k1] *
+                b->data[k1 + b->size[0] * i9];
             }
           }
+        }
+      }
 
-          eig(yj, Vc, Dc);
-          i16 = B->size[0] * B->size[1];
-          B->size[0] = Vc->size[0];
-          B->size[1] = Vc->size[1];
-          emxEnsureCapacity((emxArray__common *)B, i16, (int)sizeof(double));
-          loop_ub = Vc->size[0] * Vc->size[1];
-          for (i16 = 0; i16 < loop_ub; i16++) {
-            B->data[i16] = Vc->data[i16].re;
-          }
+      i8 = B->size[1];
+      for (nx = 0; nx < i8; nx++) {
+        loop_ub = B->size[0];
+        i9 = b_B->size[0];
+        b_B->size[0] = loop_ub;
+        emxEnsureCapacity((emxArray__common *)b_B, i9, (int)sizeof(double));
+        for (i9 = 0; i9 < loop_ub; i9++) {
+          b_B->data[i9] = B->data[i9 + B->size[0] * nx];
+        }
 
-          /* Jan 13 Change for C */
-          c_diag(Dc, R);
-          g_sort(R, iidx);
-          i16 = s->size[0];
-          s->size[0] = iidx->size[0];
-          emxEnsureCapacity((emxArray__common *)s, i16, (int)sizeof(double));
-          loop_ub = iidx->size[0];
-          for (i16 = 0; i16 < loop_ub; i16++) {
-            s->data[i16] = iidx->data[i16];
-          }
+        pp = norm(b_B) + 1.0E-20;
+        vstride = B->size[0];
+        i9 = c_B->size[0];
+        c_B->size[0] = vstride;
+        emxEnsureCapacity((emxArray__common *)c_B, i9, (int)sizeof(double));
+        for (i9 = 0; i9 < vstride; i9++) {
+          c_B->data[i9] = B->data[i9 + B->size[0] * nx] / pp;
+        }
 
-          loop_ub = B->size[0];
-          i16 = ss->size[0] * ss->size[1];
-          ss->size[0] = loop_ub;
-          ss->size[1] = iidx->size[0];
-          emxEnsureCapacity((emxArray__common *)ss, i16, (int)sizeof(double));
-          br = iidx->size[0];
-          for (i16 = 0; i16 < br; i16++) {
-            for (i17 = 0; i17 < loop_ub; i17++) {
-              ss->data[i17 + ss->size[0] * i16] = B->data[i17 + B->size[0] *
-                (iidx->data[i16] - 1)];
-            }
-          }
-
-          if (1 > b_ip) {
-            loop_ub = 0;
-          } else {
-            loop_ub = b_ip;
-          }
-
-          br = B->size[0];
-          i16 = B->size[0] * B->size[1];
-          B->size[0] = br;
-          B->size[1] = loop_ub;
-          emxEnsureCapacity((emxArray__common *)B, i16, (int)sizeof(double));
-          for (i16 = 0; i16 < loop_ub; i16++) {
-            for (i17 = 0; i17 < br; i17++) {
-              B->data[i17 + B->size[0] * i16] = ss->data[i17 + ss->size[0] * i16];
-            }
-          }
+        loop_ub = c_B->size[0];
+        for (i9 = 0; i9 < loop_ub; i9++) {
+          B->data[i9 + B->size[0] * nx] = c_B->data[i9];
         }
       }
 
       loop_ub = B->size[1];
-      for (i16 = 0; i16 < loop_ub; i16++) {
+      for (i8 = 0; i8 < loop_ub; i8++) {
         br = B->size[0];
-        for (i17 = 0; i17 < br; i17++) {
-          BB->data[(i17 + BB->size[0] * i16) + BB->size[0] * BB->size[1] * (b_ip
-            - 1)] = B->data[i17 + B->size[0] * i16];
+        for (i9 = 0; i9 < br; i9++) {
+          BB->data[(i9 + BB->size[0] * i8) + BB->size[0] * BB->size[1] * nm1d2] =
+            B->data[i9 + B->size[0] * i8];
         }
       }
 
-      if (d_strcmp(method)) {
-        i15 = (int)((1.0 + (-1.0 - ((double)p - 1.0))) / -1.0);
-        for (b_m = 0; b_m < i15; b_m++) {
-          vstride = (p - b_m) - 1;
-          if (1 > vstride) {
-            loop_ub = -1;
-          } else {
-            loop_ub = vstride - 1;
-          }
+      nm1d2++;
+    }
 
-          br = ss->size[0] - 1;
-          for (i16 = 0; i16 <= loop_ub; i16++) {
-            for (i17 = 0; i17 <= br; i17++) {
-              BB->data[(i17 + BB->size[0] * i16) + BB->size[0] * BB->size[1] *
-                (vstride - 1)] = ss->data[i17 + ss->size[0] * i16];
-            }
+    emxFree_real_T(&c_B);
+    emxFree_real_T(&b_B);
+    emxFree_real_T(&B);
+    i8 = a->size[0] * a->size[1];
+    a->size[0] = x->size[0];
+    a->size[1] = x->size[1];
+    emxEnsureCapacity((emxArray__common *)a, i8, (int)sizeof(double));
+    loop_ub = x->size[0] * x->size[1];
+    for (i8 = 0; i8 < loop_ub; i8++) {
+      a->data[i8] = x->data[i8];
+    }
+
+    inv(ss, b);
+    emxInit_real_T(&d_x, 2);
+    if ((x->size[1] == 1) || (b->size[0] == 1)) {
+      i8 = d_x->size[0] * d_x->size[1];
+      d_x->size[0] = x->size[0];
+      d_x->size[1] = b->size[1];
+      emxEnsureCapacity((emxArray__common *)d_x, i8, (int)sizeof(double));
+      loop_ub = x->size[0];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = b->size[1];
+        for (i9 = 0; i9 < br; i9++) {
+          d_x->data[i8 + d_x->size[0] * i9] = 0.0;
+          vstride = x->size[1];
+          for (k1 = 0; k1 < vstride; k1++) {
+            d_x->data[i8 + d_x->size[0] * i9] += x->data[i8 + x->size[0] * k1] *
+              b->data[k1 + b->size[0] * i9];
           }
         }
+      }
 
-        exitg1 = true;
+      i8 = x->size[0] * x->size[1];
+      x->size[0] = d_x->size[0];
+      x->size[1] = d_x->size[1];
+      emxEnsureCapacity((emxArray__common *)x, i8, (int)sizeof(double));
+      loop_ub = d_x->size[1];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = d_x->size[0];
+        for (i9 = 0; i9 < br; i9++) {
+          x->data[i9 + x->size[0] * i8] = d_x->data[i9 + d_x->size[0] * i8];
+        }
+      }
+    } else {
+      k = x->size[1];
+      nx = x->size[0];
+      vstride = b->size[1];
+      i8 = x->size[0] * x->size[1];
+      x->size[0] = nx;
+      x->size[1] = vstride;
+      emxEnsureCapacity((emxArray__common *)x, i8, (int)sizeof(double));
+      m = a->size[0];
+      i8 = x->size[0] * x->size[1];
+      emxEnsureCapacity((emxArray__common *)x, i8, (int)sizeof(double));
+      loop_ub = x->size[1];
+      for (i8 = 0; i8 < loop_ub; i8++) {
+        br = x->size[0];
+        for (i9 = 0; i9 < br; i9++) {
+          x->data[i9 + x->size[0] * i8] = 0.0;
+        }
+      }
+
+      if ((a->size[0] == 0) || (b->size[1] == 0)) {
       } else {
-        if (1 > b_ip - 1) {
-          loop_ub = 0;
-        } else {
-          loop_ub = b_ip - 1;
-        }
-
-        vstride = B->size[0];
-        i16 = c_B->size[0] * c_B->size[1];
-        c_B->size[0] = vstride;
-        c_B->size[1] = loop_ub;
-        emxEnsureCapacity((emxArray__common *)c_B, i16, (int)sizeof(double));
-        for (i16 = 0; i16 < loop_ub; i16++) {
-          for (i17 = 0; i17 < vstride; i17++) {
-            c_B->data[i17 + c_B->size[0] * i16] = B->data[i17 + B->size[0] * i16];
+        vstride = a->size[0] * (b->size[1] - 1);
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          i8 = nx + m;
+          for (ic = nx; ic + 1 <= i8; ic++) {
+            x->data[ic] = 0.0;
           }
+
+          nx += m;
         }
 
-        i16 = B->size[0] * B->size[1];
-        B->size[0] = c_B->size[0];
-        B->size[1] = c_B->size[1];
-        emxEnsureCapacity((emxArray__common *)B, i16, (int)sizeof(double));
-        loop_ub = c_B->size[1];
-        for (i16 = 0; i16 < loop_ub; i16++) {
-          br = c_B->size[0];
-          for (i17 = 0; i17 < br; i17++) {
-            B->data[i17 + B->size[0] * i16] = c_B->data[i17 + c_B->size[0] * i16];
+        br = 0;
+        nx = 0;
+        while ((m > 0) && (nx <= vstride)) {
+          ar = 0;
+          i8 = br + k;
+          for (ib = br; ib + 1 <= i8; ib++) {
+            if (b->data[ib] != 0.0) {
+              ia = ar;
+              i9 = nx + m;
+              for (ic = nx; ic + 1 <= i9; ic++) {
+                ia++;
+                x->data[ic] += b->data[ib] * a->data[ia - 1];
+              }
+            }
+
+            ar += m;
           }
-        }
 
-        ip++;
+          br += k;
+          nx += m;
+        }
       }
     }
 
-    emxFree_int32_T(&e_Ifast);
-    emxFree_int32_T(&d_Ifast);
-    emxFree_real_T(&c_abi);
-    emxFree_real_T(&b_dc);
-    emxFree_int32_T(&c_Ifast);
-    emxFree_int32_T(&b_Ifast);
-    emxFree_real_T(&c_B);
-    emxFree_real_T(&e_V);
-    emxFree_real_T(&g_C);
-    emxFree_real_T(&b_xfast);
-    emxFree_real_T(&b_Vfast);
-    emxFree_real_T(&d_V);
-    emxFree_real_T(&f_C);
-    emxFree_real_T(&b_abi);
-    emxFree_real_T(&b_dd);
-    emxFree_real_T(&h_y);
-    emxFree_real_T(&g_y);
-    emxFree_real_T(&f_y);
-    emxFree_real_T(&e_y);
-    emxFreeMatrix_cell_wrap_0(reshapes);
-    emxFree_real_T(&d_y);
-    emxFree_real_T(&c_y);
-    emxFree_real_T(&b_y);
-    emxFree_int32_T(&r2);
-    emxFree_real_T(&e_C);
-    emxFree_real_T(&d_C);
-    emxFree_real_T(&c_C);
-    emxFree_real_T(&b_C);
-    emxFree_creal_T(&R);
-    emxFree_real_T(&b_B);
-    emxFree_real_T(&tmp);
-    emxFree_real_T(&ddx);
-    emxFree_real_T(&kxijy);
-    emxFree_real_T(&dd);
-    emxFree_real_T(&abi);
-    emxFree_real_T(&dxij);
-    emxFree_real_T(&xij);
-    emxFree_real_T(&xfast);
-    emxFree_real_T(&Vfast);
-    emxFree_real_T(&Ifast);
-    emxFree_real_T(&D);
+    emxFree_real_T(&d_x);
+
+    /*  for ip = 1:p */
+    /*       cv(ip) = CVm(x*BB(:,1:ip, ip), ky); */
+    /*  end */
+    nx = BB->size[0] * BB->size[1] * BB->size[2];
+    i8 = BB1D->size[0];
+    BB1D->size[0] = (int)rt_powd_snf((double)p, 3.0);
+    emxEnsureCapacity((emxArray__common *)BB1D, i8, (int)sizeof(double));
+    for (k = 0; k + 1 <= nx; k++) {
+      BB1D->data[k] = BB->data[k];
+    }
+
+    emxFree_real_T(&BB);
   }
 
   emxFree_int32_T(&iidx);
@@ -4166,26 +4305,16 @@ void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y, const
   emxFree_creal_T(&Dc);
   emxFree_creal_T(&Vc);
   emxFree_real_T(&dc);
-  emxFree_real_T(&B);
-  emxFree_real_T(&onexi);
   emxFree_real_T(&s);
   emxFree_real_T(&U);
   emxFree_real_T(&C);
   emxFree_real_T(&yj);
+  emxFree_real_T(&yi);
   emxFree_real_T(&DD);
   emxFree_real_T(&ky2);
   emxFree_real_T(&ky1);
   emxFree_real_T(&V);
   emxFree_real_T(&ss);
-  nx = BB->size[0] * BB->size[1] * BB->size[2];
-  i15 = BB1D->size[0];
-  BB1D->size[0] = (int)rt_powd_snf((double)p, 3.0);
-  emxEnsureCapacity((emxArray__common *)BB1D, i15, (int)sizeof(double));
-  for (k = 0; k + 1 <= nx; k++) {
-    BB1D->data[k] = BB->data[k];
-  }
-
-  emxFree_real_T(&BB);
 }
 
 /* End of code generation (MAVEfast.cpp) */

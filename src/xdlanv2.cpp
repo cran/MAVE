@@ -11,11 +11,10 @@
 
 /* Include files */
 #include "rt_nonfinite.h"
-#include "CVfast.h"
 #include "MAVEfast.h"
 #include "xdlanv2.h"
-#include "relop.h"
-#include "CVfast_rtwutil.h"
+#include "xzlarfg.h"
+#include "MAVEfast_rtwutil.h"
 
 /* Function Definitions */
 void xdlanv2(double *a, double *b, double *c, double *d, double *rt1r, double
