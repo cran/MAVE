@@ -16,13 +16,13 @@ multiplied by the matrix of dimension reduction directions of given dimension. T
 made based on the data of given dimensions. The default value is 'dim.min'. In this case, the dimension
 selected by \code{\link{mave.dim}} is used. When dimension is given, the function is same with \code{\link{predict.mave}}}
 
-\item{...}{further arguments passed to or from other methods.}
+\item{...}{further arguments passed to \code{\link{mars}} function such as degree.}
 }
 \value{
 the prediced response of the new data
 }
 \description{
-This method make predictions based the best dimension of data using nadaraya-watson method. The best
+This method make predictions based the best dimension of data using \code{\link{mars}} function. The best
 dimension is selected by the \code{\link{mave.dim}} method or the dimension which is given.
 }
 \examples{
@@ -44,6 +44,6 @@ dr.dim = mave.dim(dr)
 
 yp = predict(dr.dim,x.test)
 #mean error
-mean(abs(yp-y.test)/y.test)
+mean((yp-y.test)^2)
 }
 

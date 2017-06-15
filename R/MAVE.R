@@ -68,7 +68,8 @@
 #' @useDynLib MAVE
 #' @importFrom Rcpp evalCpp
 #' @importFrom graphics pairs plot points
-#' @importFrom stats model.extract model.matrix na.fail sd
+#' @importFrom stats model.extract model.matrix na.fail sd predict
+#' @importFrom mda mars
 
 
 mave<-function(formula, data, method='CSOPG', max.dim=10, subset, na.action=na.fail){

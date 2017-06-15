@@ -1,6 +1,6 @@
 #' Make predictions based on a 'mave.dim' object
 #'
-#' This method make predictions based the best dimension of data using nadaraya-watson method. The best
+#' This method make predictions based the best dimension of data using \code{\link{mars}} function. The best
 #' dimension is selected by the \code{\link{mave.dim}} method or the dimension which is given.
 #'
 #' @param object the object of class 'mave'
@@ -9,7 +9,7 @@
 #' multiplied by the matrix of dimension reduction directions of given dimension. Then the prediction will be
 #' made based on the data of given dimensions. The default value is 'dim.min'. In this case, the dimension
 #' selected by \code{\link{mave.dim}} is used. When dimension is given, the function is same with \code{\link{predict.mave}}
-#' @param ... further arguments passed to or from other methods.
+#' @param ... further arguments passed to \code{\link{mars}} function such as degree.
 #' @return the prediced response of the new data
 #' @examples
 #'
@@ -30,7 +30,7 @@
 #'
 #' yp = predict(dr.dim,x.test)
 #' #mean error
-#' mean(abs(yp-y.test)/y.test)
+#' mean((yp-y.test)^2)
 
 #'@method predict mave.dim
 #'@export
@@ -38,20 +38,11 @@
 
 predict.mave.dim<-function(object,newx,dim='dim.min',...){
   if(dim=='dim.min'){
-    dir <- mave.dir(object)
+    dim <- which.min(object$cv)
+    y.pred <- predict.mave(object,newx,dim,...)
   }else{
-    dir <- mave.dir(object,dim)
+    y.pred <- predict.mave(object,newx,dim,...)
   }
-
-  x <- object$x%*%dir
-  newx <- newx%*%dir
-  allx <-rbind(x,newx)
-  allx <- scale(allx)
-  n <- nrow(x)
-  np <- nrow(newx)
-  x <- as.matrix(allx[1:n,])
-  newx <- as.matrix(allx[(n+1):(n+np),])
-  yp <- PredictCpp(x,newx,object$y)
-  return(yp)
+  return(y.pred)
 
 }

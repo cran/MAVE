@@ -34,5 +34,15 @@ A data set contains 21613 obervations with 19 features plus house price. The nam
   \item sqrt_lot15: Lot area in 2015(implies some renovations)
 }
 }
+\examples{
+data(kc_house_data)
+#convert date in string to date in numeric value
+kc_house_data[,2]=sapply(kc_house_data[,2],as.double)
+train = sample(1:21613)[1:1000]
+x.train = as.matrix(kc_house_data[train,c(2,4:21)]) #exclude id, house price
+y.train = as.matrix(kc_house_data[train,3]) # house price
+x.test  = as.matrix(kc_house_data[-train,c(2,4:21)])
+y.test  = as.matrix(kc_house_data[-train,3])
+}
 \keyword{datasets}
 

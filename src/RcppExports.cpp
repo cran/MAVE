@@ -45,3 +45,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+
+static const R_CallMethodDef CallEntries[] = {
+    {"MAVE_CVfastCpp", (DL_FUNC) &MAVE_CVfastCpp, 2},
+    {"MAVE_MAVEfastCpp", (DL_FUNC) &MAVE_MAVEfastCpp, 4},
+    {"MAVE_PredictCpp", (DL_FUNC) &MAVE_PredictCpp, 3},
+    {NULL, NULL, 0}
+};
+
+RcppExport void R_init_MAVE(DllInfo *dll) {
+    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+    R_useDynamicSymbols(dll, FALSE);
+}

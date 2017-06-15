@@ -15,13 +15,13 @@
 multiplied by the matrix of dimension reduction directions of given dimension. Then the prediction will be
 made based on the data of given dimensions.}
 
-\item{...}{further arguments passed to or from other methods.}
+\item{...}{further arguments passed to \code{\link{mars}} function such as degree.}
 }
 \value{
 the prediced response of the new data
 }
 \description{
-This method make predictions based the reduced dimension of data using nadaraya-watson method.
+This method make predictions based the reduced dimension of data using \code{\link{mars}} function.
 }
 \examples{
 
@@ -39,9 +39,9 @@ y.test = as.matrix(Y[-train])
 
 dr = mave(y.train~x.train, method = 'meanopg')
 
-yp = predict(dr,x.test,3)
+yp = predict(dr,x.test,dim=3,degree=2)
 #mean error
-mean(abs(yp-y.test)/y.test)
+mean((yp-y.test)^2)
 
 }
 
