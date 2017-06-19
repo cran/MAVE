@@ -1,4 +1,4 @@
-fa6fcd38123783d8c2f357095a34d044 *DESCRIPTION
+ea052457510020bab797a92bc843ffe0 *DESCRIPTION
 c3d3e0aef2de290861d18a33655969fa *NAMESPACE
 f07a1feccf203e9105ab48282fa3f416 *R/Concrete.R
 ac236591a1ce16e46f5d068494df8237 *R/M3d2list.R
@@ -10,7 +10,7 @@ d15a5da46a5a7fab403f48d291268da5 *R/MAVE_DATA.R
 e793578969d3c97f140b59abaf488bd0 *R/kc_house_data.R
 869e712c0b3663f3a6c4a0060cc13b95 *R/list2M1d.R
 0a48a3f1827f0c4b0d43d443cd2e063a *R/plot_mave.R
-f12358a8ef751727592e689040ee9b03 *R/predict_mave.R
+2b14dcb993d23382ced0aa69af40fdf8 *R/predict_mave.R
 ab86e67be2e326e6f117ed483615e420 *R/predict_mave_dim.R
 951eea55d9aaa8a6fa42e8ef4340f53c *R/print_mave.R
 3f3f1405adfee0dbc2ab8cd2e7ddf9e7 *R/print_mave_cv.R
@@ -21,7 +21,7 @@ dbd8bbf4d31f68d7c5f430436f9f6147 *data/kc_house_data.rda
 bb868a8a64412b454bdce6e152cf17a8 *data/spam.rda
 2db9fb486f7e9b53ac119a3a19dcc4dd *inst/doc/Short_introduction_to_package_MAVE.R
 6ec306c2acae70e8d7de6774cc60b33d *inst/doc/Short_introduction_to_package_MAVE.Rnw
-aca3dbbd39eaa346c2058410b580bbee *inst/doc/Short_introduction_to_package_MAVE.pdf
+760273eecf6012822d5d82cb9eb905ae *inst/doc/Short_introduction_to_package_MAVE.pdf
 56709285ef12bce146d71824a0005c50 *man/Concrete.Rd
 d1b90a511e2278e1c2290aad48896619 *man/kc_house_data.Rd
 3c15ce64972296b4d19164e3c47c334c *man/mave.Rd

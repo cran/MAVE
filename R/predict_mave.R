@@ -55,7 +55,7 @@ predict.mave<-function(object, newx, dim, ...){
     else{
       model <- mars(x.train.mave,object$y,thresh=thresh,...)
     }
-    y.pred[idx] <- predict(model,x.test.mave[idx,])
+    y.pred[idx] <- predict(model,x.test.mave[idx,,drop=F])
     idx <- which( (y.pred>y.ub) | (y.pred<y.lb) )
     thresh = thresh + thresh0
 
