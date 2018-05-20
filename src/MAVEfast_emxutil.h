@@ -20,12 +20,11 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
-extern void emxEnsureCapacity(emxArray__common *emxArray, int oldNumel, int
-  elementSize);
+extern void emxEnsureCapacity(emxArray__common *emxArray, int oldNumel, unsigned
+  int elementSize);
 extern void emxFreeMatrix_cell_wrap_0(cell_wrap_0 pMatrix[2]);
 extern void emxFree_boolean_T(emxArray_boolean_T **pEmxArray);
 extern void emxFree_char_T(emxArray_char_T **pEmxArray);

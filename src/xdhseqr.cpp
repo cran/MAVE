@@ -24,7 +24,6 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
   int n;
   int ldh;
   int ldz;
-  double v[3];
   int j;
   double SMLNUM;
   int i;
@@ -34,7 +33,7 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
   int its;
   boolean_T exitg2;
   int k;
-  boolean_T exitg4;
+  boolean_T exitg3;
   double tst;
   double htmp1;
   double aa;
@@ -44,11 +43,10 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
   double rt1r;
   double s;
   double sn;
-  boolean_T guard1 = false;
   int m;
-  boolean_T exitg3;
   double b_SMLNUM;
   int b_k;
+  double v[3];
   int nr;
   int hoffset;
   n = h->size[0];
@@ -75,8 +73,8 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
       exitg2 = false;
       while ((!exitg2) && (its < 31)) {
         k = i;
-        exitg4 = false;
-        while ((!exitg4) && ((k + 1 > L) && (!(std::abs(h->data[k + h->size[0] *
+        exitg3 = false;
+        while ((!exitg3) && ((k + 1 > L) && (!(std::abs(h->data[k + h->size[0] *
                    (k - 1)]) <= SMLNUM)))) {
           tst = std::abs(h->data[(k + h->size[0] * (k - 1)) - 1]) + std::abs
             (h->data[k + h->size[0] * k]);
@@ -90,7 +88,6 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
             }
           }
 
-          guard1 = false;
           if (std::abs(h->data[k + h->size[0] * (k - 1)]) <=
               2.2204460492503131E-16 * tst) {
             htmp1 = std::abs(h->data[k + h->size[0] * (k - 1)]);
@@ -115,22 +112,18 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
 
             s = aa + ab;
             tst = 2.2204460492503131E-16 * (htmp1 * (aa / s));
-            if ((SMLNUM >= tst) || rtIsNaN(tst)) {
+            if ((SMLNUM > tst) || rtIsNaN(tst)) {
               b_SMLNUM = SMLNUM;
             } else {
               b_SMLNUM = tst;
             }
 
             if (ba * (ab / s) <= b_SMLNUM) {
-              exitg4 = true;
+              exitg3 = true;
             } else {
-              guard1 = true;
+              k--;
             }
           } else {
-            guard1 = true;
-          }
-
-          if (guard1) {
             k--;
           }
         }
@@ -233,7 +226,7 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
 
           for (b_k = m; b_k <= i; b_k++) {
             nr = (i - b_k) + 2;
-            if (3 <= nr) {
+            if (3 < nr) {
               nr = 3;
             }
 
@@ -272,7 +265,7 @@ int eml_dlahqr(emxArray_real_T *h, emxArray_real_T *z)
                 h->data[(b_k + h->size[0] * j) + 1] -= aa * ba;
               }
 
-              if (b_k + 3 <= i + 1) {
+              if (b_k + 3 < i + 1) {
                 nr = b_k;
               } else {
                 nr = i - 2;

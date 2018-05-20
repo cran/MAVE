@@ -26,10 +26,11 @@ static void emxFreeStruct_cell_wrap_0(cell_wrap_0 *pStruct)
 
 static void emxInitStruct_cell_wrap_0(cell_wrap_0 *pStruct)
 {
-  emxInit_real_T(&pStruct->f1, 2);
+  emxInit_real_T1(&pStruct->f1, 2);
 }
 
-void emxEnsureCapacity(emxArray__common *emxArray, int oldNumel, int elementSize)
+void emxEnsureCapacity(emxArray__common *emxArray, int oldNumel, unsigned int
+  elementSize)
 {
   int newNumel;
   int i;
@@ -57,9 +58,9 @@ void emxEnsureCapacity(emxArray__common *emxArray, int oldNumel, int elementSize
       }
     }
 
-    newData = calloc((unsigned int)i, (unsigned int)elementSize);
+    newData = calloc((unsigned int)i, elementSize);
     if (emxArray->data != NULL) {
-      memcpy(newData, emxArray->data, (unsigned int)(elementSize * oldNumel));
+      memcpy(newData, emxArray->data, elementSize * oldNumel);
       if (emxArray->canFreeData) {
         free(emxArray->data);
       }

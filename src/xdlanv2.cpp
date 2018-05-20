@@ -51,7 +51,7 @@ void xdlanv2(double *a, double *b, double *c, double *d, double *rt1r, double
     p = 0.5 * temp;
     z = std::abs(*b);
     scale = std::abs(*c);
-    if ((z >= scale) || rtIsNaN(scale)) {
+    if ((z > scale) || rtIsNaN(scale)) {
       bcmax = z;
     } else {
       bcmax = scale;
@@ -59,7 +59,7 @@ void xdlanv2(double *a, double *b, double *c, double *d, double *rt1r, double
 
     z = std::abs(*b);
     scale = std::abs(*c);
-    if ((z <= scale) || rtIsNaN(scale)) {
+    if ((z < scale) || rtIsNaN(scale)) {
       b_z = z;
     } else {
       b_z = scale;
@@ -79,7 +79,7 @@ void xdlanv2(double *a, double *b, double *c, double *d, double *rt1r, double
 
     bcmis = b_z * (double)b_b * (double)b_c;
     z = std::abs(p);
-    if ((z >= bcmax) || rtIsNaN(bcmax)) {
+    if ((z > bcmax) || rtIsNaN(bcmax)) {
       scale = z;
     } else {
       scale = bcmax;

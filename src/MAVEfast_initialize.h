@@ -20,7 +20,6 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */

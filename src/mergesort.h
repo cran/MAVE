@@ -3,14 +3,14 @@
  * perform academic research at degree granting institutions only.  Not
  * for government, commercial, or other organizational use.
  *
- * xzgetrf.h
+ * mergesort.h
  *
- * Code generation for function 'xzgetrf'
+ * Code generation for function 'mergesort'
  *
  */
 
-#ifndef XZGETRF_H
-#define XZGETRF_H
+#ifndef MERGESORT_H
+#define MERGESORT_H
 
 /* Include files */
 #include <cmath>
@@ -20,13 +20,11 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
-extern void xzgetrf(int m, int n, emxArray_real_T *A, int lda, emxArray_int32_T *
-                    ipiv, int *info);
+extern void b_mergesort(emxArray_int32_T *idx, const emxArray_real_T *x, int n);
 
 #endif
 
-/* End of code generation (xzgetrf.h) */
+/* End of code generation (mergesort.h) */

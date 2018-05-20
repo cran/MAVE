@@ -3,7 +3,7 @@
 \name{plot.mave}
 \alias{plot.mave}
 \alias{plot.mave.dim}
-\title{Plot of mave object}
+\title{Plot of mave or mave.dim object}
 \usage{
 \method{plot}{mave}(x, dim = 4, plot.method = pairs, ...)
 
@@ -32,4 +32,6 @@ dr.dim = mave.dim(dr)
 plot(dr,dim=3)
 plot(dr.dim)
 }
-
+\seealso{
+\code{\link{mave}} for computing the dimension reduction space
+}

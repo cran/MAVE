@@ -1,14 +1,15 @@
 #' Select best direction using cross-validation
 #'
-#'This function selects the dimension of the central (mean)  space
-#'based on the calculation of MAVE  using cross-validation method.
+#' This function selects the dimension of the central (mean)  space
+#' based on the calculation of MAVE  using cross-validation method.
 #'
 #' @param dr the result of MAVE function
 #' @param max.dim the maximum dimension for cross-validation.
 #'
 #' @return dr.dim contains all information in dr plus cross-validation values of corresponding
 #' direction
-
+#' @seealso \code{\link{mave}} for computing the dimension reduction space, \code{\link{predict.mave.dim}}
+#' for prediction method of mave.dim class
 #' @export
 #'
 #' @examples
@@ -38,10 +39,9 @@ mave.dim<-function(dr, max.dim=10){
     dr$cv <- rep(Inf, max.dim)
   }
   for(dim in which.dim){
-    dr$cv[dim] <- CVfastCpp(dr$x%*%mave.dir(dr,dim),dr$ky)
+    dr$cv[dim] <- CVfastCpp(mave.data(dr,dr$x,dim),dr$ky)
   }
-  class(dr) <- 'mave.dim'
   dr$call<-match.call()
-
+  class(dr)<-'mave.dim'
   return(dr)
 }

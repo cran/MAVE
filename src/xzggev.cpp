@@ -25,13 +25,14 @@
 void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
             emxArray_creal_T *beta1, emxArray_creal_T *V)
 {
+  int b_info;
   int n;
-  int jrow;
-  int m;
+  int j;
+  int loop_ub;
   double anrm;
   boolean_T ilascl;
   boolean_T notdone;
-  int k;
+  int jcol;
   boolean_T exitg1;
   double anrmto;
   double absxk;
@@ -44,42 +45,40 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
   double cfrom1;
   double cto1;
   double stemp_im;
-  int jcol;
+  int jrow;
   creal_T b_A;
   creal_T c_A;
-  int i;
   double c;
   creal_T tmp;
-  int j;
   double stemp_re;
-  *info = 0;
+  b_info = 0;
   n = A->size[0];
-  jrow = alpha1->size[0];
+  j = alpha1->size[0];
   alpha1->size[0] = A->size[0];
-  emxEnsureCapacity((emxArray__common *)alpha1, jrow, (int)sizeof(creal_T));
-  m = A->size[0];
-  for (jrow = 0; jrow < m; jrow++) {
-    alpha1->data[jrow].re = 0.0;
-    alpha1->data[jrow].im = 0.0;
+  emxEnsureCapacity((emxArray__common *)alpha1, j, sizeof(creal_T));
+  loop_ub = A->size[0];
+  for (j = 0; j < loop_ub; j++) {
+    alpha1->data[j].re = 0.0;
+    alpha1->data[j].im = 0.0;
   }
 
-  jrow = beta1->size[0];
+  j = beta1->size[0];
   beta1->size[0] = A->size[0];
-  emxEnsureCapacity((emxArray__common *)beta1, jrow, (int)sizeof(creal_T));
-  m = A->size[0];
-  for (jrow = 0; jrow < m; jrow++) {
-    beta1->data[jrow].re = 0.0;
-    beta1->data[jrow].im = 0.0;
+  emxEnsureCapacity((emxArray__common *)beta1, j, sizeof(creal_T));
+  loop_ub = A->size[0];
+  for (j = 0; j < loop_ub; j++) {
+    beta1->data[j].re = 0.0;
+    beta1->data[j].im = 0.0;
   }
 
-  jrow = V->size[0] * V->size[1];
+  j = V->size[0] * V->size[1];
   V->size[0] = A->size[0];
   V->size[1] = A->size[0];
-  emxEnsureCapacity((emxArray__common *)V, jrow, (int)sizeof(creal_T));
-  m = A->size[0] * A->size[0];
-  for (jrow = 0; jrow < m; jrow++) {
-    V->data[jrow].re = 0.0;
-    V->data[jrow].im = 0.0;
+  emxEnsureCapacity((emxArray__common *)V, j, sizeof(creal_T));
+  loop_ub = A->size[0] * A->size[0];
+  for (j = 0; j < loop_ub; j++) {
+    V->data[j].re = 0.0;
+    V->data[j].im = 0.0;
   }
 
   if (!((A->size[0] == 0) || (A->size[1] == 0))) {
@@ -87,10 +86,10 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
     ilascl = (A->size[0] == 0);
     notdone = (A->size[1] == 0);
     if (!(ilascl || notdone)) {
-      k = 0;
+      jcol = 0;
       exitg1 = false;
-      while ((!exitg1) && (k <= A->size[0] * A->size[1] - 1)) {
-        absxk = rt_hypotd_snf(A->data[k].re, A->data[k].im);
+      while ((!exitg1) && (jcol <= A->size[0] * A->size[1] - 1)) {
+        absxk = rt_hypotd_snf(A->data[jcol].re, A->data[jcol].im);
         if (rtIsNaN(absxk)) {
           anrm = rtNaN;
           exitg1 = true;
@@ -99,38 +98,38 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
             anrm = absxk;
           }
 
-          k++;
+          jcol++;
         }
       }
     }
 
     if (!((!rtIsInf(anrm)) && (!rtIsNaN(anrm)))) {
-      jrow = alpha1->size[0];
+      j = alpha1->size[0];
       alpha1->size[0] = A->size[0];
-      emxEnsureCapacity((emxArray__common *)alpha1, jrow, (int)sizeof(creal_T));
-      m = A->size[0];
-      for (jrow = 0; jrow < m; jrow++) {
-        alpha1->data[jrow].re = rtNaN;
-        alpha1->data[jrow].im = 0.0;
+      emxEnsureCapacity((emxArray__common *)alpha1, j, sizeof(creal_T));
+      loop_ub = A->size[0];
+      for (j = 0; j < loop_ub; j++) {
+        alpha1->data[j].re = rtNaN;
+        alpha1->data[j].im = 0.0;
       }
 
-      jrow = beta1->size[0];
+      j = beta1->size[0];
       beta1->size[0] = A->size[0];
-      emxEnsureCapacity((emxArray__common *)beta1, jrow, (int)sizeof(creal_T));
-      m = A->size[0];
-      for (jrow = 0; jrow < m; jrow++) {
-        beta1->data[jrow].re = rtNaN;
-        beta1->data[jrow].im = 0.0;
+      emxEnsureCapacity((emxArray__common *)beta1, j, sizeof(creal_T));
+      loop_ub = A->size[0];
+      for (j = 0; j < loop_ub; j++) {
+        beta1->data[j].re = rtNaN;
+        beta1->data[j].im = 0.0;
       }
 
-      jrow = V->size[0] * V->size[1];
+      j = V->size[0] * V->size[1];
       V->size[0] = A->size[0];
       V->size[1] = A->size[0];
-      emxEnsureCapacity((emxArray__common *)V, jrow, (int)sizeof(creal_T));
-      m = A->size[0] * A->size[0];
-      for (jrow = 0; jrow < m; jrow++) {
-        V->data[jrow].re = rtNaN;
-        V->data[jrow].im = 0.0;
+      emxEnsureCapacity((emxArray__common *)V, j, sizeof(creal_T));
+      loop_ub = A->size[0] * A->size[0];
+      for (j = 0; j < loop_ub; j++) {
+        V->data[j].re = rtNaN;
+        V->data[j].im = 0.0;
       }
     } else {
       ilascl = false;
@@ -163,46 +162,46 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
             notdone = false;
           }
 
-          jrow = A->size[0] * A->size[1];
-          emxEnsureCapacity((emxArray__common *)A, jrow, (int)sizeof(creal_T));
-          m = A->size[1];
-          for (jrow = 0; jrow < m; jrow++) {
-            k = A->size[0];
-            for (jcol = 0; jcol < k; jcol++) {
-              A->data[jcol + A->size[0] * jrow].re *= stemp_im;
-              A->data[jcol + A->size[0] * jrow].im *= stemp_im;
+          j = A->size[0] * A->size[1];
+          emxEnsureCapacity((emxArray__common *)A, j, sizeof(creal_T));
+          loop_ub = A->size[1];
+          for (j = 0; j < loop_ub; j++) {
+            jcol = A->size[0];
+            for (jrow = 0; jrow < jcol; jrow++) {
+              A->data[jrow + A->size[0] * j].re *= stemp_im;
+              A->data[jrow + A->size[0] * j].im *= stemp_im;
             }
           }
         }
       }
 
-      emxInit_int32_T1(&rscale, 1);
+      emxInit_int32_T(&rscale, 1);
       emxInit_int8_T(&I, 2);
       xzggbal(A, &ilo, &ihi, rscale);
       b_n = A->size[0];
-      jrow = I->size[0] * I->size[1];
+      j = I->size[0] * I->size[1];
       I->size[0] = A->size[0];
       I->size[1] = A->size[0];
-      emxEnsureCapacity((emxArray__common *)I, jrow, (int)sizeof(signed char));
-      m = A->size[0] * A->size[0];
-      for (jrow = 0; jrow < m; jrow++) {
-        I->data[jrow] = 0;
+      emxEnsureCapacity((emxArray__common *)I, j, sizeof(signed char));
+      loop_ub = A->size[0] * A->size[0];
+      for (j = 0; j < loop_ub; j++) {
+        I->data[j] = 0;
       }
 
       if (A->size[0] > 0) {
-        for (k = 0; k + 1 <= b_n; k++) {
-          I->data[k + I->size[0] * k] = 1;
+        for (jcol = 0; jcol + 1 <= b_n; jcol++) {
+          I->data[jcol + I->size[0] * jcol] = 1;
         }
       }
 
-      jrow = V->size[0] * V->size[1];
+      j = V->size[0] * V->size[1];
       V->size[0] = I->size[0];
       V->size[1] = I->size[1];
-      emxEnsureCapacity((emxArray__common *)V, jrow, (int)sizeof(creal_T));
-      m = I->size[0] * I->size[1];
-      for (jrow = 0; jrow < m; jrow++) {
-        V->data[jrow].re = I->data[jrow];
-        V->data[jrow].im = 0.0;
+      emxEnsureCapacity((emxArray__common *)V, j, sizeof(creal_T));
+      loop_ub = I->size[0] * I->size[1];
+      for (j = 0; j < loop_ub; j++) {
+        V->data[j].re = I->data[j];
+        V->data[j].im = 0.0;
       }
 
       emxFree_int8_T(&I);
@@ -235,61 +234,65 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
 
             tmp.re = -tmp.re;
             tmp.im = -tmp.im;
-            for (i = 0; i + 1 <= ihi; i++) {
-              absxk = tmp.re * A->data[i + A->size[0] * (jrow - 1)].re - tmp.im *
-                A->data[i + A->size[0] * (jrow - 1)].im;
-              ctoc = tmp.re * A->data[i + A->size[0] * (jrow - 1)].im + tmp.im *
-                A->data[i + A->size[0] * (jrow - 1)].re;
-              stemp_re = c * A->data[i + A->size[0] * jrow].re + absxk;
-              stemp_im = c * A->data[i + A->size[0] * jrow].im + ctoc;
-              absxk = A->data[i + A->size[0] * jrow].re;
-              ctoc = A->data[i + A->size[0] * jrow].im;
-              cfrom1 = A->data[i + A->size[0] * jrow].im;
-              cto1 = A->data[i + A->size[0] * jrow].re;
-              A->data[i + A->size[0] * (jrow - 1)].re = c * A->data[i + A->size
-                [0] * (jrow - 1)].re - (tmp.re * absxk + tmp.im * ctoc);
-              A->data[i + A->size[0] * (jrow - 1)].im = c * A->data[i + A->size
-                [0] * (jrow - 1)].im - (tmp.re * cfrom1 - tmp.im * cto1);
-              A->data[i + A->size[0] * jrow].re = stemp_re;
-              A->data[i + A->size[0] * jrow].im = stemp_im;
+            for (loop_ub = 0; loop_ub + 1 <= ihi; loop_ub++) {
+              absxk = tmp.re * A->data[loop_ub + A->size[0] * (jrow - 1)].re -
+                tmp.im * A->data[loop_ub + A->size[0] * (jrow - 1)].im;
+              ctoc = tmp.re * A->data[loop_ub + A->size[0] * (jrow - 1)].im +
+                tmp.im * A->data[loop_ub + A->size[0] * (jrow - 1)].re;
+              stemp_re = c * A->data[loop_ub + A->size[0] * jrow].re + absxk;
+              stemp_im = c * A->data[loop_ub + A->size[0] * jrow].im + ctoc;
+              absxk = A->data[loop_ub + A->size[0] * jrow].re;
+              ctoc = A->data[loop_ub + A->size[0] * jrow].im;
+              cfrom1 = A->data[loop_ub + A->size[0] * jrow].im;
+              cto1 = A->data[loop_ub + A->size[0] * jrow].re;
+              A->data[loop_ub + A->size[0] * (jrow - 1)].re = c * A->
+                data[loop_ub + A->size[0] * (jrow - 1)].re - (tmp.re * absxk +
+                tmp.im * ctoc);
+              A->data[loop_ub + A->size[0] * (jrow - 1)].im = c * A->
+                data[loop_ub + A->size[0] * (jrow - 1)].im - (tmp.re * cfrom1 -
+                tmp.im * cto1);
+              A->data[loop_ub + A->size[0] * jrow].re = stemp_re;
+              A->data[loop_ub + A->size[0] * jrow].im = stemp_im;
             }
 
-            for (i = 0; i + 1 <= b_n; i++) {
-              absxk = tmp.re * V->data[i + V->size[0] * (jrow - 1)].re - tmp.im *
-                V->data[i + V->size[0] * (jrow - 1)].im;
-              ctoc = tmp.re * V->data[i + V->size[0] * (jrow - 1)].im + tmp.im *
-                V->data[i + V->size[0] * (jrow - 1)].re;
-              stemp_re = c * V->data[i + V->size[0] * jrow].re + absxk;
-              stemp_im = c * V->data[i + V->size[0] * jrow].im + ctoc;
-              absxk = V->data[i + V->size[0] * jrow].re;
-              ctoc = V->data[i + V->size[0] * jrow].im;
-              cfrom1 = V->data[i + V->size[0] * jrow].im;
-              cto1 = V->data[i + V->size[0] * jrow].re;
-              V->data[i + V->size[0] * (jrow - 1)].re = c * V->data[i + V->size
-                [0] * (jrow - 1)].re - (tmp.re * absxk + tmp.im * ctoc);
-              V->data[i + V->size[0] * (jrow - 1)].im = c * V->data[i + V->size
-                [0] * (jrow - 1)].im - (tmp.re * cfrom1 - tmp.im * cto1);
-              V->data[i + V->size[0] * jrow].re = stemp_re;
-              V->data[i + V->size[0] * jrow].im = stemp_im;
+            for (loop_ub = 0; loop_ub + 1 <= b_n; loop_ub++) {
+              absxk = tmp.re * V->data[loop_ub + V->size[0] * (jrow - 1)].re -
+                tmp.im * V->data[loop_ub + V->size[0] * (jrow - 1)].im;
+              ctoc = tmp.re * V->data[loop_ub + V->size[0] * (jrow - 1)].im +
+                tmp.im * V->data[loop_ub + V->size[0] * (jrow - 1)].re;
+              stemp_re = c * V->data[loop_ub + V->size[0] * jrow].re + absxk;
+              stemp_im = c * V->data[loop_ub + V->size[0] * jrow].im + ctoc;
+              absxk = V->data[loop_ub + V->size[0] * jrow].re;
+              ctoc = V->data[loop_ub + V->size[0] * jrow].im;
+              cfrom1 = V->data[loop_ub + V->size[0] * jrow].im;
+              cto1 = V->data[loop_ub + V->size[0] * jrow].re;
+              V->data[loop_ub + V->size[0] * (jrow - 1)].re = c * V->
+                data[loop_ub + V->size[0] * (jrow - 1)].re - (tmp.re * absxk +
+                tmp.im * ctoc);
+              V->data[loop_ub + V->size[0] * (jrow - 1)].im = c * V->
+                data[loop_ub + V->size[0] * (jrow - 1)].im - (tmp.re * cfrom1 -
+                tmp.im * cto1);
+              V->data[loop_ub + V->size[0] * jrow].re = stemp_re;
+              V->data[loop_ub + V->size[0] * jrow].im = stemp_im;
             }
           }
         }
       }
 
-      xzhgeqz(A, ilo, ihi, V, &jcol, alpha1, beta1);
-      *info = jcol;
-      if (jcol == 0) {
+      xzhgeqz(A, ilo, ihi, V, &b_info, alpha1, beta1);
+      if (b_info == 0) {
         xztgevc(A, V);
         b_n = V->size[0];
-        m = V->size[1];
+        jrow = V->size[1];
         if (ilo > 1) {
-          for (i = ilo - 2; i + 1 >= 1; i--) {
-            k = rscale->data[i] - 1;
-            if (rscale->data[i] != i + 1) {
-              for (j = 0; j + 1 <= m; j++) {
-                tmp = V->data[i + V->size[0] * j];
-                V->data[i + V->size[0] * j] = V->data[k + V->size[0] * j];
-                V->data[k + V->size[0] * j] = tmp;
+          for (loop_ub = ilo - 2; loop_ub + 1 >= 1; loop_ub--) {
+            jcol = rscale->data[loop_ub] - 1;
+            if (rscale->data[loop_ub] != loop_ub + 1) {
+              for (j = 0; j + 1 <= jrow; j++) {
+                tmp = V->data[loop_ub + V->size[0] * j];
+                V->data[loop_ub + V->size[0] * j] = V->data[jcol + V->size[0] *
+                  j];
+                V->data[jcol + V->size[0] * j] = tmp;
               }
             }
           }
@@ -297,12 +300,12 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
 
         if (ihi < b_n) {
           while (ihi + 1 <= b_n) {
-            k = rscale->data[ihi] - 1;
+            jcol = rscale->data[ihi] - 1;
             if (rscale->data[ihi] != ihi + 1) {
-              for (j = 0; j + 1 <= m; j++) {
+              for (j = 0; j + 1 <= jrow; j++) {
                 tmp = V->data[ihi + V->size[0] * j];
-                V->data[ihi + V->size[0] * j] = V->data[k + V->size[0] * j];
-                V->data[k + V->size[0] * j] = tmp;
+                V->data[ihi + V->size[0] * j] = V->data[jcol + V->size[0] * j];
+                V->data[jcol + V->size[0] * j] = tmp;
               }
             }
 
@@ -314,9 +317,9 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
           absxk = std::abs(V->data[V->size[0] * jcol].re) + std::abs(V->data
             [V->size[0] * jcol].im);
           if (n > 1) {
-            for (k = 1; k - 1 <= n - 2; k++) {
-              ctoc = std::abs(V->data[k + V->size[0] * jcol].re) + std::abs
-                (V->data[k + V->size[0] * jcol].im);
+            for (jrow = 1; jrow - 1 <= n - 2; jrow++) {
+              ctoc = std::abs(V->data[jrow + V->size[0] * jcol].re) + std::abs
+                (V->data[jrow + V->size[0] * jcol].im);
               if (ctoc > absxk) {
                 absxk = ctoc;
               }
@@ -325,9 +328,9 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
 
           if (absxk >= 6.7178761075670888E-139) {
             absxk = 1.0 / absxk;
-            for (k = 0; k < n; k++) {
-              V->data[k + V->size[0] * jcol].re *= absxk;
-              V->data[k + V->size[0] * jcol].im *= absxk;
+            for (jrow = 0; jrow < n; jrow++) {
+              V->data[jrow + V->size[0] * jcol].re *= absxk;
+              V->data[jrow + V->size[0] * jcol].im *= absxk;
             }
           }
         }
@@ -348,13 +351,12 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
               notdone = false;
             }
 
-            jrow = alpha1->size[0];
-            emxEnsureCapacity((emxArray__common *)alpha1, jrow, (int)sizeof
-                              (creal_T));
-            m = alpha1->size[0];
-            for (jrow = 0; jrow < m; jrow++) {
-              alpha1->data[jrow].re *= stemp_im;
-              alpha1->data[jrow].im *= stemp_im;
+            j = alpha1->size[0];
+            emxEnsureCapacity((emxArray__common *)alpha1, j, sizeof(creal_T));
+            loop_ub = alpha1->size[0];
+            for (j = 0; j < loop_ub; j++) {
+              alpha1->data[j].re *= stemp_im;
+              alpha1->data[j].im *= stemp_im;
             }
           }
         }
@@ -363,6 +365,8 @@ void xzggev(emxArray_creal_T *A, int *info, emxArray_creal_T *alpha1,
       emxFree_int32_T(&rscale);
     }
   }
+
+  *info = b_info;
 }
 
 /* End of code generation (xzggev.cpp) */

@@ -20,10 +20,12 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
+extern void b_combine_vector_elements(const emxArray_real_T *x, emxArray_real_T *
+  y);
+extern double c_combine_vector_elements(const emxArray_real_T *x);
 extern void combine_vector_elements(const emxArray_real_T *x, emxArray_real_T *y);
 
 #endif

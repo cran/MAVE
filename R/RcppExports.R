@@ -2,14 +2,10 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 CVfastCpp <- function(x, ky) {
-    .Call('MAVE_CVfastCpp', PACKAGE = 'MAVE', x, ky)
+    .Call('_MAVE_CVfastCpp', PACKAGE = 'MAVE', x, ky)
 }
 
-MAVEfastCpp <- function(x, y, method, which_dim) {
-    .Call('MAVE_MAVEfastCpp', PACKAGE = 'MAVE', x, y, method, which_dim)
-}
-
-PredictCpp <- function(x, newx, y) {
-    .Call('MAVE_PredictCpp', PACKAGE = 'MAVE', x, newx, y)
+MAVEfastCpp <- function(x, y, method, max_dim, screen) {
+    .Call('_MAVE_MAVEfastCpp', PACKAGE = 'MAVE', x, y, method, max_dim, screen)
 }
 

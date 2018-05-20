@@ -3,14 +3,14 @@
  * perform academic research at degree granting institutions only.  Not
  * for government, commercial, or other organizational use.
  *
- * MAVEfast_data.h
+ * unique.h
  *
- * Code generation for function 'MAVEfast_data'
+ * Code generation for function 'unique'
  *
  */
 
-#ifndef MAVEFAST_DATA_H
-#define MAVEFAST_DATA_H
+#ifndef UNIQUE_H
+#define UNIQUE_H
 
 /* Include files */
 #include <cmath>
@@ -20,12 +20,12 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
-/* Variable Declarations */
-//extern omp_nest_lock_t emlrtNestLockGlobal;
+/* Function Declarations */
+extern void count_nonfinites(const emxArray_real_T *b, int nb, int *nMInf, int
+  *nFinite, int *nPInf, int *nNaN);
 
 #endif
 
-/* End of code generation (MAVEfast_data.h) */
+/* End of code generation (unique.h) */

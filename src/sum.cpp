@@ -18,10 +18,15 @@
 /* Function Definitions */
 void b_sum(const emxArray_real_T *x, emxArray_real_T *y)
 {
-  combine_vector_elements(x, y);
+  b_combine_vector_elements(x, y);
 }
 
-double sum(const emxArray_real_T *x)
+double c_sum(const emxArray_real_T *x)
+{
+  return c_combine_vector_elements(x);
+}
+
+double d_sum(const emxArray_real_T *x)
 {
   double y;
   int k;
@@ -35,6 +40,11 @@ double sum(const emxArray_real_T *x)
   }
 
   return y;
+}
+
+void sum(const emxArray_real_T *x, emxArray_real_T *y)
+{
+  combine_vector_elements(x, y);
 }
 
 /* End of code generation (sum.cpp) */

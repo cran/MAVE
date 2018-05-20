@@ -45,4 +45,3 @@ x.test  = as.matrix(kc_house_data[-train,c(2,4:21)])
 y.test  = as.matrix(kc_house_data[-train,3])
 }
 \keyword{datasets}
-

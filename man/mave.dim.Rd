@@ -34,4 +34,7 @@ based on the calculation of MAVE  using cross-validation method.
  dr.mean <- mave(y~x,method='meanmave')
  dr.mean.dim <- mave.dim(dr.mean)
 }
-
+\seealso{
+\code{\link{mave}} for computing the dimension reduction space, \code{\link{predict.mave.dim}}
+for prediction method of mave.dim class
+}

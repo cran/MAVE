@@ -7,7 +7,7 @@
 #' @param dr the object returned by \code{\link{mave}} or \code{\link{mave.dim}}
 #' @param x the original data matrix of p dimensions
 #' @param dim the dimension of the reduced data matrix.
-#'
+#' @seealso \code{\link{coef.mave}} for obtaining the dimension reduction directions
 #' @export
 #' @examples
 #'
@@ -21,7 +21,7 @@ mave.data<-function(dr, x, dim = NULL){
   if(class(dr)=='mave'){
     if(!is.null(dim)){
       if(dim<=dr$max.dim){
-         return(as.matrix(x%*%mave.dir(dr,dim)))
+         return(as.matrix(x%*%coef.mave(dr,dim)))
       }
       else{
         arg='central space'
@@ -35,10 +35,10 @@ mave.data<-function(dr, x, dim = NULL){
   }
   if(class(dr)=='mave.dim'){
     if(is.null(dim)){
-      return(as.matrix(x%*%mave.dir(dr)))
+      return(as.matrix(x%*%coef.mave.dim(dr)))
     }
     else{
-      return(as.matrix(x%*%mave.dir(dr,dim)))
+      return(as.matrix(x%*%coef.mave(dr,dim)))
     }
   }
 

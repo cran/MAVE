@@ -20,13 +20,10 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern void b_repmat(const emxArray_real_T *a, double varargin_2,
-                     emxArray_real_T *b);
-extern void c_repmat(const emxArray_real_T *a, double varargin_2,
                      emxArray_real_T *b);
 extern void repmat(const emxArray_real_T *a, double varargin_1, emxArray_real_T *
                    b);

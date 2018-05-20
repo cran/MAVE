@@ -3,53 +3,52 @@
  * perform academic research at degree granting institutions only.  Not
  * for government, commercial, or other organizational use.
  *
- * xzgetrf.cpp
+ * xgetrf.cpp
  *
- * Code generation for function 'xzgetrf'
+ * Code generation for function 'xgetrf'
  *
  */
 
 /* Include files */
 #include "rt_nonfinite.h"
 #include "MAVEfast.h"
-#include "xzgetrf.h"
+#include "xgetrf.h"
 #include "colon.h"
 
 /* Function Definitions */
-void xzgetrf(int m, int n, emxArray_real_T *A, int lda, emxArray_int32_T *ipiv,
-             int *info)
+void xgetrf(int m, int n, emxArray_real_T *A, int lda, emxArray_int32_T *ipiv,
+            int *info)
 {
-  int b_m;
-  int i10;
+  int iy;
+  int b_info;
+  int u0;
   int j;
   int mmj;
   int c;
-  int iy;
   int ix;
   double smax;
   int jA;
-  int i11;
+  int i22;
   int jy;
   double s;
   int b_j;
   int ijA;
-  if (m <= n) {
-    b_m = m;
+  if (m < n) {
+    iy = m;
   } else {
-    b_m = n;
+    iy = n;
   }
 
-  eml_signed_integer_colon(b_m, ipiv);
-  *info = 0;
+  eml_signed_integer_colon(iy, ipiv);
+  b_info = 0;
   if ((m < 1) || (n < 1)) {
   } else {
-    if (m - 1 <= n) {
-      i10 = m - 1;
-    } else {
-      i10 = n;
+    u0 = m - 1;
+    if (!(u0 < n)) {
+      u0 = n;
     }
 
-    for (j = 0; j + 1 <= i10; j++) {
+    for (j = 0; j + 1 <= u0; j++) {
       mmj = m - j;
       c = j * (lda + 1);
       if (mmj < 1) {
@@ -84,12 +83,12 @@ void xzgetrf(int m, int n, emxArray_real_T *A, int lda, emxArray_int32_T *ipiv,
           }
         }
 
-        i11 = c + mmj;
-        for (iy = c + 1; iy + 1 <= i11; iy++) {
+        i22 = c + mmj;
+        for (iy = c + 1; iy + 1 <= i22; iy++) {
           A->data[iy] /= A->data[c];
         }
       } else {
-        *info = j + 1;
+        b_info = j + 1;
       }
 
       iy = (n - j) - 1;
@@ -99,8 +98,8 @@ void xzgetrf(int m, int n, emxArray_real_T *A, int lda, emxArray_int32_T *ipiv,
         smax = A->data[jy];
         if (A->data[jy] != 0.0) {
           ix = c + 1;
-          i11 = mmj + jA;
-          for (ijA = jA; ijA + 1 < i11; ijA++) {
+          i22 = mmj + jA;
+          for (ijA = jA; ijA + 1 < i22; ijA++) {
             A->data[ijA] += A->data[ix] * -smax;
             ix++;
           }
@@ -111,11 +110,13 @@ void xzgetrf(int m, int n, emxArray_real_T *A, int lda, emxArray_int32_T *ipiv,
       }
     }
 
-    if ((*info == 0) && (m <= n) && (!(A->data[(m + A->size[0] * (m - 1)) - 1]
+    if ((b_info == 0) && (m <= n) && (!(A->data[(m + A->size[0] * (m - 1)) - 1]
           != 0.0))) {
-      *info = m;
+      b_info = m;
     }
   }
+
+  *info = b_info;
 }
 
-/* End of code generation (xzgetrf.cpp) */
+/* End of code generation (xgetrf.cpp) */

@@ -20,12 +20,12 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern void b_abs(const emxArray_boolean_T *x, emxArray_real_T *y);
 extern void c_abs(const emxArray_real_T *x, emxArray_real_T *y);
+extern void d_abs(const emxArray_real_T *x, emxArray_real_T *y);
 
 #endif
 

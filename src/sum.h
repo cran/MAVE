@@ -20,12 +20,13 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern void b_sum(const emxArray_real_T *x, emxArray_real_T *y);
-extern double sum(const emxArray_real_T *x);
+extern double c_sum(const emxArray_real_T *x);
+extern double d_sum(const emxArray_real_T *x);
+extern void sum(const emxArray_real_T *x, emxArray_real_T *y);
 
 #endif
 

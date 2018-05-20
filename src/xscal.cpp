@@ -17,10 +17,10 @@
 /* Function Definitions */
 void xscal(int n, double a, emxArray_real_T *x, int ix0)
 {
-  int i13;
+  int i17;
   int k;
-  i13 = (ix0 + n) - 1;
-  for (k = ix0; k <= i13; k++) {
+  i17 = (ix0 + n) - 1;
+  for (k = ix0; k <= i17; k++) {
     x->data[k - 1] *= a;
   }
 }

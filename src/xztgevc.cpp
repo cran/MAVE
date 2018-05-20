@@ -20,7 +20,7 @@ void xztgevc(const emxArray_creal_T *A, emxArray_creal_T *V)
 {
   emxArray_creal_T *work1;
   int n;
-  int i15;
+  int i19;
   int loop_ub;
   emxArray_creal_T *work2;
   emxArray_real_T *rworka;
@@ -48,37 +48,37 @@ void xztgevc(const emxArray_creal_T *A, emxArray_creal_T *V)
   double d_re;
   double d_im;
   double work1_im;
-  emxInit_creal_T(&work1, 1);
+  emxInit_creal_T1(&work1, 1);
   n = A->size[0] - 1;
-  i15 = work1->size[0];
+  i19 = work1->size[0];
   work1->size[0] = A->size[0];
-  emxEnsureCapacity((emxArray__common *)work1, i15, (int)sizeof(creal_T));
+  emxEnsureCapacity((emxArray__common *)work1, i19, sizeof(creal_T));
   loop_ub = A->size[0];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    work1->data[i15].re = 0.0;
-    work1->data[i15].im = 0.0;
+  for (i19 = 0; i19 < loop_ub; i19++) {
+    work1->data[i19].re = 0.0;
+    work1->data[i19].im = 0.0;
   }
 
-  emxInit_creal_T(&work2, 1);
-  i15 = work2->size[0];
+  emxInit_creal_T1(&work2, 1);
+  i19 = work2->size[0];
   work2->size[0] = A->size[0];
-  emxEnsureCapacity((emxArray__common *)work2, i15, (int)sizeof(creal_T));
+  emxEnsureCapacity((emxArray__common *)work2, i19, sizeof(creal_T));
   loop_ub = A->size[0];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    work2->data[i15].re = 0.0;
-    work2->data[i15].im = 0.0;
+  for (i19 = 0; i19 < loop_ub; i19++) {
+    work2->data[i19].re = 0.0;
+    work2->data[i19].im = 0.0;
   }
 
-  emxInit_real_T1(&rworka, 1);
+  emxInit_real_T(&rworka, 1);
   SMALL = 2.2250738585072014E-308 * (double)A->size[0] / 2.2204460492503131E-16;
   BIG = 1.0 / SMALL;
   BIGNUM = 1.0 / (2.2250738585072014E-308 * (double)A->size[0]);
-  i15 = rworka->size[0];
+  i19 = rworka->size[0];
   rworka->size[0] = A->size[0];
-  emxEnsureCapacity((emxArray__common *)rworka, i15, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)rworka, i19, sizeof(double));
   loop_ub = A->size[0];
-  for (i15 = 0; i15 < loop_ub; i15++) {
-    rworka->data[i15] = 0.0;
+  for (i19 = 0; i19 < loop_ub; i19++) {
+    rworka->data[i19] = 0.0;
   }
 
   anorm = std::abs(A->data[0].re) + std::abs(A->data[0].im);
@@ -101,8 +101,8 @@ void xztgevc(const emxArray_creal_T *A, emxArray_creal_T *V)
   }
 
   ascale = 1.0 / xmx;
-  i15 = (int)((1.0 + (-1.0 - (double)A->size[0])) / -1.0);
-  for (je = 0; je < i15; je++) {
+  i19 = (int)((1.0 + (-1.0 - (double)A->size[0])) / -1.0);
+  for (je = 0; je < i19; je++) {
     b_je = n - je;
     xmx = (std::abs(A->data[b_je + A->size[0] * b_je].re) + std::abs(A->
             data[b_je + A->size[0] * b_je].im)) * ascale;

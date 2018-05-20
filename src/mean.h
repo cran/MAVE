@@ -20,12 +20,12 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern void b_mean(const emxArray_real_T *x, emxArray_real_T *y);
 extern double c_mean(const emxArray_real_T *x);
+extern double d_mean(const emxArray_real_T *x);
 extern void mean(const emxArray_real_T *x, emxArray_real_T *y);
 
 #endif

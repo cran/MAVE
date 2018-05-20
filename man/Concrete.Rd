@@ -52,4 +52,3 @@ mean((y.pred-y.test)^2)
 -Cheng Yeh, "Modeling of strength of high performance concrete using artificial neural networks," Cement and Concrete Research, Vol. 28, No. 12, pp. 1797-1808 (1998).
 }
 \keyword{datasets}
-

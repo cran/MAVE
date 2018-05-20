@@ -20,13 +20,13 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern void MAVEfast(emxArray_real_T *x, const emxArray_real_T *y,
-                     emxArray_char_T *method, emxArray_real_T *which_dim,
-                     emxArray_real_T *BB1D, emxArray_real_T *ky);
+                     emxArray_char_T *method, double max_dim, double screen,
+                     emxArray_real_T *BB, emxArray_real_T *ky, emxArray_real_T
+                     *BBvs, emxArray_real_T *idx, emxArray_real_T *C);
 
 #endif
 

@@ -8,7 +8,7 @@ using namespace Rcpp;
 
 // CVfastCpp
 double CVfastCpp(const arma::mat& x, const arma::mat& ky);
-RcppExport SEXP MAVE_CVfastCpp(SEXP xSEXP, SEXP kySEXP) {
+RcppExport SEXP _MAVE_CVfastCpp(SEXP xSEXP, SEXP kySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -19,37 +19,24 @@ BEGIN_RCPP
 END_RCPP
 }
 // MAVEfastCpp
-List MAVEfastCpp(NumericVector x, NumericVector y, CharacterVector method, NumericVector which_dim);
-RcppExport SEXP MAVE_MAVEfastCpp(SEXP xSEXP, SEXP ySEXP, SEXP methodSEXP, SEXP which_dimSEXP) {
+List MAVEfastCpp(NumericMatrix x, NumericMatrix y, CharacterVector method, double max_dim, double screen);
+RcppExport SEXP _MAVE_MAVEfastCpp(SEXP xSEXP, SEXP ySEXP, SEXP methodSEXP, SEXP max_dimSEXP, SEXP screenSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type y(ySEXP);
     Rcpp::traits::input_parameter< CharacterVector >::type method(methodSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type which_dim(which_dimSEXP);
-    rcpp_result_gen = Rcpp::wrap(MAVEfastCpp(x, y, method, which_dim));
-    return rcpp_result_gen;
-END_RCPP
-}
-// PredictCpp
-arma::colvec PredictCpp(const arma::mat& x, const arma::mat& newx, const arma::colvec& y);
-RcppExport SEXP MAVE_PredictCpp(SEXP xSEXP, SEXP newxSEXP, SEXP ySEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type newx(newxSEXP);
-    Rcpp::traits::input_parameter< const arma::colvec& >::type y(ySEXP);
-    rcpp_result_gen = Rcpp::wrap(PredictCpp(x, newx, y));
+    Rcpp::traits::input_parameter< double >::type max_dim(max_dimSEXP);
+    Rcpp::traits::input_parameter< double >::type screen(screenSEXP);
+    rcpp_result_gen = Rcpp::wrap(MAVEfastCpp(x, y, method, max_dim, screen));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"MAVE_CVfastCpp", (DL_FUNC) &MAVE_CVfastCpp, 2},
-    {"MAVE_MAVEfastCpp", (DL_FUNC) &MAVE_MAVEfastCpp, 4},
-    {"MAVE_PredictCpp", (DL_FUNC) &MAVE_PredictCpp, 3},
+    {"_MAVE_CVfastCpp", (DL_FUNC) &_MAVE_CVfastCpp, 2},
+    {"_MAVE_MAVEfastCpp", (DL_FUNC) &_MAVE_MAVEfastCpp, 5},
     {NULL, NULL, 0}
 };
 

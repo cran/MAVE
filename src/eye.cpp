@@ -18,19 +18,26 @@
 /* Function Definitions */
 void eye(double varargin_1, emxArray_real_T *I)
 {
+  double t;
   int k;
   int loop_ub;
+  if (varargin_1 < 0.0) {
+    t = 0.0;
+  } else {
+    t = varargin_1;
+  }
+
   k = I->size[0] * I->size[1];
-  I->size[0] = (int)varargin_1;
-  I->size[1] = (int)varargin_1;
-  emxEnsureCapacity((emxArray__common *)I, k, (int)sizeof(double));
-  loop_ub = (int)varargin_1 * (int)varargin_1;
+  I->size[0] = (int)t;
+  I->size[1] = (int)t;
+  emxEnsureCapacity((emxArray__common *)I, k, sizeof(double));
+  loop_ub = (int)t * (int)t;
   for (k = 0; k < loop_ub; k++) {
     I->data[k] = 0.0;
   }
 
-  if ((int)varargin_1 > 0) {
-    for (k = 0; k + 1 <= (int)varargin_1; k++) {
+  if ((int)t > 0) {
+    for (k = 0; k + 1 <= (int)t; k++) {
       I->data[k + I->size[0] * k] = 1.0;
     }
   }

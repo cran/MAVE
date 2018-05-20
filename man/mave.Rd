@@ -5,10 +5,11 @@
 \alias{mave.compute}
 \title{Dimension reduction}
 \usage{
-mave(formula, data, method = "CSOPG", max.dim = 10, subset,
+mave(formula, data, method = "CSOPG", max.dim = 10, screen = NULL, subset,
   na.action = na.fail)
 
-mave.compute(x, y, method = "CSOPG", max.dim = 10)
+mave.compute(x, y, method = "CSOPG", max.dim = 10,
+  screen = nrow(x)/log(nrow(x)))
 }
 \arguments{
 \item{formula}{the model used in regression}
@@ -27,7 +28,11 @@ by default, method = 'csOPG'
            with poor accuracy.
 }}
 
-\item{max.dim}{the maximum dimension of dimension reduction space. The default is 10.}
+\item{max.dim}{the maximum dimension of dimension reduction space. The default is 10. In practice, max.dim
+will be equal to min(max.dim,ncol(x),screen).}
+
+\item{screen}{specify the number of variables retained after screening method. The default is n/log(n).
+When this number is smaller than max.dim, then max.dim will change to the value of screen}
 
 \item{subset}{an optional vector specifying a subset of observations to be used in the fitting process.}
 
@@ -35,9 +40,9 @@ by default, method = 'csOPG'
 is na.action, which wil stop calculations. If na.action is set to be na.omit, the incomplete cases
 will be removed.}
 
-\item{x}{The design matrix.}
+\item{x}{The n by p design matrix.}
 
-\item{y}{The respond vector.}
+\item{y}{The n by q respond matrix.}
 }
 \value{
 dr is a list which contains:
@@ -45,6 +50,7 @@ dr is a list which contains:
 \item dir: dir[[d]] is the central space with d-dimension
         d = 1, 2, ..., p reduced direction of different dimensions
 \item y: the value of response
+\item idx: the index of variables which survives after screening
 \item max.dim: the largest dimensions of CS or CMS which have been calculated in mave function
 \item ky: parameter used for DIM for selection
 \item x: the original training data
@@ -63,18 +69,29 @@ This function provides several methods to estimate the central space or central 
  y <- x\%*\%b1 + (x\%*\%b2)*eps
 
  #finding central space based on OPG method
- dr.csopg <- mave.compute(x,y, method = 'csopg')
+ #dr.csopg <- mave.compute(x,y, method = 'csopg')
  #or
  dr.csopg <- mave(y ~ x, method = 'csopg')
 
- dr.meanopg <- mave.compute(x,y, method = 'meanopg')
+ #dr.meanopg <- mave.compute(x,y, method = 'meanopg')
  #or
  dr.meanopg <- mave(y ~ x, method = 'meanopg')
 
  #find central mean space based on ksir method
  dr.ksir <- mave(y~x,method='ksir')
  #or
- dr.ksir <- mave.compute(x,y,method='ksir')
+ #dr.ksir <- mave.compute(x,y,method='ksir')
+
+ #See more examples about screening and mutiple responses in the vignette
+ #Using screening for high dimensional data
+ #x <- matrix(rnorm(100*50),100,50)
+ #y1 = as.matrix(x[,1])+rnorm(100)*.2
+ #y2 = as.matrix(x[,2]+x[,3])*as.matrix(x[,1]+x[,5])+rnorm(100)*.2
+ #y = cbind(y1,y2)
+ #dr.sc = mave(y~x,method='CSOPG',max.dim=5,screen=20)
+ #dr.sc.dim = mave.dim(dr.sc)
+ #print the directions of central space with the selected variables
+ #dr.sc.dim$dir[[3]][dr.sc$idx,]
 
 }
 \references{
@@ -87,6 +104,7 @@ Xia Y. A constructive approach to the estimation of dimension reduction directio
 Wang H, Xia Y. Sliced regression for dimension reduction[J]. Journal of the American Statistical Association, 2008, 103(482): 811-821.
 }
 \seealso{
-\code{\link{mave.dim}} for dimension selection
+\code{\link{mave.dim}} for dimension selection, \code{\link{predict.mave}} for prediction
+using the dimension reduction space, \code{\link{coef.mave}} for accessing the basis vectors of
+dimension reduction space of given dimension, \code{\link{plot.mave}} for plot method for mave class
 }
-

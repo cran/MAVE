@@ -20,10 +20,10 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
+extern void b_mldivide(const emxArray_real_T *A, emxArray_real_T *B);
 extern void mldivide(const emxArray_real_T *A, const emxArray_real_T *B,
                      emxArray_real_T *Y);
 

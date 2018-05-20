@@ -3,14 +3,14 @@
  * perform academic research at degree granting institutions only.  Not
  * for government, commercial, or other organizational use.
  *
- * xtrsm.h
+ * floor.h
  *
- * Code generation for function 'xtrsm'
+ * Code generation for function 'floor'
  *
  */
 
-#ifndef XTRSM_H
-#define XTRSM_H
+#ifndef FLOOR_H
+#define FLOOR_H
 
 /* Include files */
 #include <cmath>
@@ -20,13 +20,11 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
-extern void xtrsm(int m, int n, const emxArray_real_T *A, int lda,
-                  emxArray_real_T *B, int ldb);
+extern void b_floor(double x_data[], int x_size[2]);
 
 #endif
 
-/* End of code generation (xtrsm.h) */
+/* End of code generation (floor.h) */

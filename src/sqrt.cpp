@@ -17,43 +17,59 @@
 #include "MAVEfast_rtwutil.h"
 
 /* Function Definitions */
-void b_sqrt(creal_T *x)
+void b_sqrt(emxArray_real_T *x)
 {
+  int nx;
+  int k;
+  nx = x->size[0] * x->size[1];
+  for (k = 0; k + 1 <= nx; k++) {
+    x->data[k] = std::sqrt(x->data[k]);
+  }
+}
+
+void c_sqrt(creal_T *x)
+{
+  double xr;
+  double xi;
   double absxi;
   double absxr;
-  if (x->im == 0.0) {
-    if (x->re < 0.0) {
+  xr = x->re;
+  xi = x->im;
+  if (xi == 0.0) {
+    if (xr < 0.0) {
       absxi = 0.0;
-      absxr = std::sqrt(std::abs(x->re));
+      xr = std::sqrt(-xr);
     } else {
-      absxi = std::sqrt(x->re);
-      absxr = 0.0;
+      absxi = std::sqrt(xr);
+      xr = 0.0;
     }
-  } else if (x->re == 0.0) {
-    if (x->im < 0.0) {
-      absxi = std::sqrt(-x->im / 2.0);
-      absxr = -absxi;
+  } else if (xr == 0.0) {
+    if (xi < 0.0) {
+      absxi = std::sqrt(-xi / 2.0);
+      xr = -absxi;
     } else {
-      absxi = std::sqrt(x->im / 2.0);
-      absxr = absxi;
+      absxi = std::sqrt(xi / 2.0);
+      xr = absxi;
     }
-  } else if (rtIsNaN(x->re) || rtIsNaN(x->im)) {
-    absxi = rtNaN;
-    absxr = rtNaN;
-  } else if (rtIsInf(x->im)) {
-    absxi = rtInf;
-    absxr = x->im;
-  } else if (rtIsInf(x->re)) {
-    if (x->re < 0.0) {
+  } else if (rtIsNaN(xr)) {
+    absxi = xr;
+  } else if (rtIsNaN(xi)) {
+    absxi = xi;
+    xr = xi;
+  } else if (rtIsInf(xi)) {
+    absxi = std::abs(xi);
+    xr = xi;
+  } else if (rtIsInf(xr)) {
+    if (xr < 0.0) {
       absxi = 0.0;
-      absxr = rtInf;
+      xr = xi * -xr;
     } else {
-      absxi = rtInf;
-      absxr = 0.0;
+      absxi = xr;
+      xr = 0.0;
     }
   } else {
-    absxr = std::abs(x->re);
-    absxi = std::abs(x->im);
+    absxr = std::abs(xr);
+    absxi = std::abs(xi);
     if ((absxr > 4.4942328371557893E+307) || (absxi > 4.4942328371557893E+307))
     {
       absxr *= 0.5;
@@ -68,31 +84,21 @@ void b_sqrt(creal_T *x)
       absxi = std::sqrt((rt_hypotd_snf(absxr, absxi) + absxr) * 0.5);
     }
 
-    if (x->re > 0.0) {
-      absxr = 0.5 * (x->im / absxi);
+    if (xr > 0.0) {
+      xr = 0.5 * (xi / absxi);
     } else {
-      if (x->im < 0.0) {
-        absxr = -absxi;
+      if (xi < 0.0) {
+        xr = -absxi;
       } else {
-        absxr = absxi;
+        xr = absxi;
       }
 
-      absxi = 0.5 * (x->im / absxr);
+      absxi = 0.5 * (xi / xr);
     }
   }
 
   x->re = absxi;
-  x->im = absxr;
-}
-
-void c_sqrt(emxArray_real_T *x)
-{
-  int nx;
-  int k;
-  nx = x->size[0] * x->size[1];
-  for (k = 0; k + 1 <= nx; k++) {
-    x->data[k] = std::sqrt(x->data[k]);
-  }
+  x->im = xr;
 }
 
 void d_sqrt(emxArray_real_T *x)

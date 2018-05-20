@@ -28,7 +28,7 @@ void kron(const emxArray_real_T *A, const emxArray_real_T *B, emxArray_real_T *K
   j2 = K->size[0] * K->size[1];
   K->size[0] = kidx;
   K->size[1] = unnamed_idx_1;
-  emxEnsureCapacity((emxArray__common *)K, j2, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)K, j2, sizeof(double));
   kidx = -1;
   for (unnamed_idx_1 = 1; unnamed_idx_1 <= A->size[1]; unnamed_idx_1++) {
     for (j2 = 1; j2 <= B->size[1]; j2++) {

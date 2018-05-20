@@ -30,7 +30,7 @@ void eml_signed_integer_colon(int b, emxArray_int32_T *y)
   yk = y->size[0] * y->size[1];
   y->size[0] = 1;
   y->size[1] = n;
-  emxEnsureCapacity((emxArray__common *)y, yk, (int)sizeof(int));
+  emxEnsureCapacity((emxArray__common *)y, yk, sizeof(int));
   if (n > 0) {
     y->data[0] = 1;
     yk = 1;

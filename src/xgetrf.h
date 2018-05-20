@@ -3,14 +3,14 @@
  * perform academic research at degree granting institutions only.  Not
  * for government, commercial, or other organizational use.
  *
- * inv.h
+ * xgetrf.h
  *
- * Code generation for function 'inv'
+ * Code generation for function 'xgetrf'
  *
  */
 
-#ifndef INV_H
-#define INV_H
+#ifndef XGETRF_H
+#define XGETRF_H
 
 /* Include files */
 #include <cmath>
@@ -20,12 +20,12 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
-extern void inv(const emxArray_real_T *x, emxArray_real_T *y);
+extern void xgetrf(int m, int n, emxArray_real_T *A, int lda, emxArray_int32_T
+                   *ipiv, int *info);
 
 #endif
 
-/* End of code generation (inv.h) */
+/* End of code generation (xgetrf.h) */

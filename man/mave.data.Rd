@@ -25,4 +25,6 @@ y <- x[,1]+x[,2]+as.matrix(rnorm(100))
 dr <- mave(y~x)
 x.reduced <- mave.data(dr,x,3)
 }
-
+\seealso{
+\code{\link{coef.mave}} for obtaining the dimension reduction directions
+}

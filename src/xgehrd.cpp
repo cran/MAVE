@@ -23,12 +23,11 @@ void xgehrd(emxArray_real_T *a, emxArray_real_T *tau)
   int n;
   int ntau;
   emxArray_real_T *work;
-  int i12;
+  int i16;
   int i;
   int im1n;
   int in;
   double alpha1;
-  int b_i;
   int jy;
   int lastv;
   int lastc;
@@ -46,29 +45,28 @@ void xgehrd(emxArray_real_T *a, emxArray_real_T *tau)
     ntau = a->size[0] - 1;
   }
 
-  emxInit_real_T1(&work, 1);
-  i12 = tau->size[0];
+  emxInit_real_T(&work, 1);
+  i16 = tau->size[0];
   tau->size[0] = ntau;
-  emxEnsureCapacity((emxArray__common *)tau, i12, (int)sizeof(double));
+  emxEnsureCapacity((emxArray__common *)tau, i16, sizeof(double));
   ntau = a->size[0];
-  i12 = work->size[0];
+  i16 = work->size[0];
   work->size[0] = ntau;
-  emxEnsureCapacity((emxArray__common *)work, i12, (int)sizeof(double));
-  for (i12 = 0; i12 < ntau; i12++) {
-    work->data[i12] = 0.0;
+  emxEnsureCapacity((emxArray__common *)work, i16, sizeof(double));
+  for (i16 = 0; i16 < ntau; i16++) {
+    work->data[i16] = 0.0;
   }
 
   for (i = 0; i + 1 < n; i++) {
     im1n = i * n + 2;
     in = (i + 1) * n;
     alpha1 = a->data[(i + a->size[0] * i) + 1];
-    if (i + 3 <= n) {
-      b_i = i + 3;
-    } else {
-      b_i = n;
+    ntau = i + 3;
+    if (!(ntau < n)) {
+      ntau = n;
     }
 
-    tau->data[i] = xzlarfg((n - i) - 1, &alpha1, a, b_i + i * n);
+    tau->data[i] = xzlarfg((n - i) - 1, &alpha1, a, ntau + i * n);
     a->data[(i + a->size[0] * i) + 1] = 1.0;
     ntau = (n - i) - 3;
     jy = (i + im1n) - 1;
@@ -115,9 +113,9 @@ void xgehrd(emxArray_real_T *a, emxArray_real_T *tau)
         }
 
         ix = jy;
-        i12 = (in + n * (lastv - 1)) + 1;
+        i16 = (in + n * (lastv - 1)) + 1;
         iac = in + 1;
-        while ((n > 0) && (iac <= i12)) {
+        while ((n > 0) && (iac <= i16)) {
           ntau = 0;
           ijA = (iac + lastc) - 1;
           for (ia = iac; ia <= ijA; ia++) {
@@ -136,8 +134,8 @@ void xgehrd(emxArray_real_T *a, emxArray_real_T *tau)
           if (a->data[jy] != 0.0) {
             temp = a->data[jy] * -tau->data[i];
             ix = 0;
-            i12 = lastc + ntau;
-            for (ijA = ntau; ijA + 1 <= i12; ijA++) {
+            i16 = lastc + ntau;
+            for (ijA = ntau; ijA + 1 <= i16; ijA++) {
               a->data[ijA] += work->data[ix] * temp;
               ix++;
             }

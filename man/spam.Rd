@@ -22,4 +22,3 @@ x.train <- sqrt(x.train)
 x.test <- sqrt(x.test)
 }
 \keyword{datasets}
-

@@ -18,7 +18,7 @@
  * Target hardware information
  *   Device type: Generic->MATLAB Host Computer
  *   Number of bits:     char:   8    short:   16    int:  32
- *                       long:  32    :  64
+ *                       long:  64    long long:  64
  *                       native word size:  64
  *   Byte ordering: LittleEndian
  *   Signed integer division rounds to: Zero
@@ -133,10 +133,10 @@ typedef struct {
 #define MIN_int32_T                    ((int32_T)(-2147483647-1))
 #define MAX_uint32_T                   ((uint32_T)(0xFFFFFFFFU))
 #define MIN_uint32_T                   ((uint32_T)(0))
-#define MAX_int64_T                    ((int64_T)(9223372036854775807LL))
-#define MIN_int64_T                    ((int64_T)(-9223372036854775807LL-1LL))
-#define MAX_uint64_T                   ((uint64_T)(0xFFFFFFFFFFFFFFFFULL))
-#define MIN_uint64_T                   ((uint64_T)(0ULL))
+#define MAX_int64_T                    ((int64_T)(9223372036854775807L))
+#define MIN_int64_T                    ((int64_T)(-9223372036854775807L-1L))
+#define MAX_uint64_T                   ((uint64_T)(0xFFFFFFFFFFFFFFFFUL))
+#define MIN_uint64_T                   ((uint64_T)(0UL))
 
 /* Logical type definitions */
 #if !defined(__cplusplus) && !defined(__true_false_are_keywords)

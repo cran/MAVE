@@ -13,12 +13,11 @@
 #include "rt_nonfinite.h"
 #include "MAVEfast.h"
 #include "MAVEfast_terminate.h"
-#include "MAVEfast_data.h"
 
 /* Function Definitions */
 void MAVEfast_terminate()
 {
-//  omp_destroy_nest_lock(&emlrtNestLockGlobal);
+  /* (no terminate code required) */
 }
 
 /* End of code generation (MAVEfast_terminate.cpp) */

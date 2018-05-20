@@ -20,29 +20,29 @@
 void b_xzlartg(const creal_T f, const creal_T g, double *cs, creal_T *sn)
 {
   double scale;
-  double g2;
   double f2s;
+  double x;
   double fs_re;
   double fs_im;
   double gs_re;
   double gs_im;
   boolean_T guard1 = false;
+  double g2;
   double g2s;
-  double d;
   scale = std::abs(f.re);
-  g2 = std::abs(f.im);
-  if (g2 > scale) {
-    scale = g2;
-  }
-
-  f2s = std::abs(g.re);
-  g2 = std::abs(g.im);
-  if (g2 > f2s) {
-    f2s = g2;
-  }
-
+  f2s = std::abs(f.im);
   if (f2s > scale) {
     scale = f2s;
+  }
+
+  x = std::abs(g.re);
+  f2s = std::abs(g.im);
+  if (f2s > x) {
+    x = f2s;
+  }
+
+  if (x > scale) {
+    scale = x;
   }
 
   fs_re = f.re;
@@ -83,36 +83,36 @@ void b_xzlartg(const creal_T f, const creal_T g, double *cs, creal_T *sn)
   if (guard1) {
     scale = fs_re * fs_re + fs_im * fs_im;
     g2 = gs_re * gs_re + gs_im * gs_im;
-    f2s = g2;
+    x = g2;
     if (1.0 > g2) {
-      f2s = 1.0;
+      x = 1.0;
     }
 
-    if (scale <= f2s * 2.0041683600089728E-292) {
+    if (scale <= x * 2.0041683600089728E-292) {
       if ((f.re == 0.0) && (f.im == 0.0)) {
         *cs = 0.0;
-        d = rt_hypotd_snf(gs_re, gs_im);
-        sn->re = gs_re / d;
-        sn->im = -gs_im / d;
+        g2 = rt_hypotd_snf(gs_re, gs_im);
+        sn->re = gs_re / g2;
+        sn->im = -gs_im / g2;
       } else {
         g2s = std::sqrt(g2);
         *cs = rt_hypotd_snf(fs_re, fs_im) / g2s;
-        f2s = std::abs(f.re);
-        g2 = std::abs(f.im);
-        if (g2 > f2s) {
-          f2s = g2;
+        x = std::abs(f.re);
+        f2s = std::abs(f.im);
+        if (f2s > x) {
+          x = f2s;
         }
 
-        if (f2s > 1.0) {
-          d = rt_hypotd_snf(f.re, f.im);
-          fs_re = f.re / d;
-          fs_im = f.im / d;
+        if (x > 1.0) {
+          g2 = rt_hypotd_snf(f.re, f.im);
+          fs_re = f.re / g2;
+          fs_im = f.im / g2;
         } else {
-          g2 = 7.4428285367870146E+137 * f.re;
-          scale = 7.4428285367870146E+137 * f.im;
-          d = rt_hypotd_snf(g2, scale);
-          fs_re = g2 / d;
-          fs_im = scale / d;
+          scale = 7.4428285367870146E+137 * f.re;
+          f2s = 7.4428285367870146E+137 * f.im;
+          g2 = rt_hypotd_snf(scale, f2s);
+          fs_re = scale / g2;
+          fs_im = f2s / g2;
         }
 
         gs_re /= g2s;
@@ -122,10 +122,12 @@ void b_xzlartg(const creal_T f, const creal_T g, double *cs, creal_T *sn)
       }
     } else {
       f2s = std::sqrt(1.0 + g2 / scale);
+      fs_re *= f2s;
+      fs_im *= f2s;
       *cs = 1.0 / f2s;
-      d = scale + g2;
-      fs_re = f2s * fs_re / d;
-      fs_im = f2s * fs_im / d;
+      g2 += scale;
+      fs_re /= g2;
+      fs_im /= g2;
       sn->re = fs_re * gs_re - fs_im * -gs_im;
       sn->im = fs_re * -gs_im + fs_im * gs_re;
     }

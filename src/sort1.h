@@ -20,14 +20,12 @@
 #include <string.h>
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
-//#include "omp.h"
 #include "MAVEfast_types.h"
 
 /* Function Declarations */
 extern void c_sort(emxArray_real_T *x, emxArray_int32_T *idx);
-extern void e_sort(emxArray_real_T *x, emxArray_int32_T *idx);
-extern void f_sort(emxArray_real_T *x);
-extern void sort(emxArray_real_T *x);
+extern void d_sort(emxArray_real_T *x);
+extern void sort(emxArray_real_T *x, emxArray_int32_T *idx);
 
 #endif
 
