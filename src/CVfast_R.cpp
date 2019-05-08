@@ -82,15 +82,15 @@ double CVfastCpp(const arma::mat& x,const arma::mat& ky){
   int n = x.n_rows, p=x.n_cols;
   double cv = 0;
   arma::mat nx = tiedrank(x)/(n+1);
-  double h=mean(mean(stddev(nx,0,0)))/(pow(n,1/(p+4.0)));
+  double h=arma::mean(arma::mean(arma::stddev(nx,0,0)))/(pow(n,1/(p+4.0)));
 
   for(int i=0;i<n;++i){
-    arma::colvec dxi = sum(abs(nx-repmat(nx.row(i),n,1)),1)/h;
+    arma::colvec dxi = arma::sum(abs(nx-repmat(nx.row(i),n,1)),1)/h;
     arma::colvec k=1/pow(1+dxi,4);
     k[i]=0;
     k=k/(sum(k)+1e-6);
     arma::rowvec ye=k.t()*ky;
-    cv+=mean(abs(ye-ky.row(i)))/n;
+    cv+=arma::mean(abs(ye-ky.row(i)))/n;
   }
 
   return cv;
