@@ -7,7 +7,8 @@
 #' @param object the output of \code{\link{mave}} or the output of \code{\link{mave.dim}}
 #' @param dim the dimension of CS or CMS. The value of dim should be given when the class of the
 #' argument dr is mave. When the class of the argument dr is mave.dim and dim is not given, the
-#' function will return the basis matrix of CS or CMS of dimension selected by \code{\link{mave.dim}}
+#' function will return the basis matrix of CS or CMS of dimension selected by \code{\link{mave.dim}}.
+#' Note that the dimension should be > 0.
 #' @param ... no use.
 #'
 #' @return dir the matrix of CS or CMS of given dimension

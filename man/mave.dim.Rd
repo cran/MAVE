@@ -14,6 +14,11 @@ mave.dim(dr, max.dim = 10)
 \value{
 dr.dim contains all information in dr plus cross-validation values of corresponding
 direction
+\itemize{
+\item cv0 : the cross-validation value when the null model is used
+\item cv : the cross-validation value using dimension reduction directions of different dimensions
+\item dim.min : the dimension of minimum cross-validation value. Note that this value can be 0.
+}
 }
 \description{
 This function selects the dimension of the central (mean)  space

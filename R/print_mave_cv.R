@@ -7,7 +7,8 @@ print.mave.dim<-function(x,...){
   if(substr(x$method,1,2)!='CS') arg='central mean space'
   p=length(x$dir)
   pp=1
-  idx = which(!is.infinite(x$cv))
+  cv = c(x$cv0,x$cv)
+  idx = which(!is.infinite(cv)) - 1
   cat('The cross-validation is run on dimensions of',idx,'\n')
   while(pp<=length(idx)){
     np=min(pp+10,length(idx))
@@ -15,12 +16,12 @@ print.mave.dim<-function(x,...){
     for(i in pp:np) cat(idx[i],'\t')
     cat('\n')
     cat('CV-value\t')
-    for(i in pp:np) cat(round(x$cv[idx[i]],2),'\t')
+    for(i in pp:np) cat(round(cv[idx[i]+1],2),'\t')
     cat('\n')
     pp=np+1
   }
   cat('\n')
-  d=which(x$cv==min(x$cv))
+  d=which.min(cv)-1
   cat('The selected dimension of ',arg,' is ',d)
   cat('\n\n')
   #cat(paste('The matrix of the best',arg,'selected by cross-validation is of',d,'dimensions,','\nwhich is given below\n',sep=' '))

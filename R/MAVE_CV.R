@@ -8,6 +8,11 @@
 #'
 #' @return dr.dim contains all information in dr plus cross-validation values of corresponding
 #' direction
+#' \itemize{
+#' \item cv0 : the cross-validation value when the null model is used
+#' \item cv : the cross-validation value using dimension reduction directions of different dimensions
+#' \item dim.min : the dimension of minimum cross-validation value. Note that this value can be 0.
+#' }
 #' @seealso \code{\link{mave}} for computing the dimension reduction space, \code{\link{predict.mave.dim}}
 #' for prediction method of mave.dim class
 #' @export
@@ -36,11 +41,18 @@ mave.dim<-function(dr, max.dim=10){
     return(dr)
   }
   if(is.null(dr$cv)){
-    dr$cv <- rep(Inf, max.dim)
+    cv <- rep(Inf, max.dim)
   }
+  
+  n = nrow(dr$ky)
+  cv0 = mean(abs(dr$ky)*(1+1/n))
+  
   for(dim in which.dim){
-    dr$cv[dim] <- CVfastCpp(mave.data(dr,dr$x,dim),dr$ky)
+    cv[dim] <- CVfastCpp(mave.data(dr,dr$x,dim),dr$ky)
   }
+  dr$cv = cv
+  dr$cv0 = cv0
+  dr$dim.min = which.min(c(cv0,cv))-1
   dr$call<-match.call()
   class(dr)<-'mave.dim'
   return(dr)

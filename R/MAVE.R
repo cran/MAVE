@@ -129,6 +129,7 @@ mave.compute<-function(x, y, method='CSOPG', max.dim = 10, screen=nrow(x)/log(nr
   if(!(method %in% methodvec)){
     stop('method should be one of CSMAVE, CSOPG, MEANOPG, MEANMAVE, KSIR')
   }
+  y = as.matrix(y)
   if(nrow(x)!=nrow(y)){
     stop('the row of x and the row of y is not compatible')
   }
