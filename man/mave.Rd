@@ -5,11 +5,23 @@
 \alias{mave.compute}
 \title{Dimension reduction}
 \usage{
-mave(formula, data, method = "CSOPG", max.dim = 10, screen = NULL,
-  subset, na.action = na.fail)
+mave(
+  formula,
+  data,
+  method = "CSOPG",
+  max.dim = 10,
+  screen = NULL,
+  subset,
+  na.action = na.fail
+)
 
-mave.compute(x, y, method = "CSOPG", max.dim = 10,
-  screen = nrow(x)/log(nrow(x)))
+mave.compute(
+  x,
+  y,
+  method = "CSOPG",
+  max.dim = 10,
+  screen = nrow(x)/log(nrow(x))
+)
 }
 \arguments{
 \item{formula}{the model used in regression}

@@ -4,7 +4,9 @@
 \name{Concrete}
 \alias{Concrete}
 \title{Concrete Compressive Strength Data Set}
-\format{A data frame with 1030 rows and 8 covariate variables and 1 response variable}
+\format{
+A data frame with 1030 rows and 8 covariate variables and 1 response variable
+}
 \source{
 \url{https://archive.ics.uci.edu/ml/datasets/Concrete+Compressive+Strength}
 }

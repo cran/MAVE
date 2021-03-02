@@ -4,7 +4,9 @@
 \name{kc_house_data}
 \alias{kc_house_data}
 \title{House price in King County, USA}
-\format{A data frame with 21613 rows and 19 variables}
+\format{
+A data frame with 21613 rows and 19 variables
+}
 \source{
 \url{https://www.kaggle.com/harlfoxem/housesalesprediction}
 }

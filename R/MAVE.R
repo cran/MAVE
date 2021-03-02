@@ -130,10 +130,11 @@ mave.compute<-function(x, y, method='CSOPG', max.dim = 10, screen=nrow(x)/log(nr
     stop('method should be one of CSMAVE, CSOPG, MEANOPG, MEANMAVE, KSIR')
   }
   y = as.matrix(y)
+  x = as.matrix(x)
   if(nrow(x)!=nrow(y)){
     stop('the row of x and the row of y is not compatible')
   }
-  if(length(x)==length(y)){
+  if(ncol(x)==1){
     stop('x is one dimensional, no need do dimension reduction')
   }
   if(screen<ncol(x)){

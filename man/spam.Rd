@@ -4,7 +4,9 @@
 \name{spam}
 \alias{spam}
 \title{4601 email record}
-\format{A data frame with 4601 rows and 57 variables}
+\format{
+A data frame with 4601 rows and 57 variables
+}
 \description{
 A dataset containing 4601 record of email with 57 features. These features are the
 relative frequency of most commonly used phrases and punctions. The data of these
